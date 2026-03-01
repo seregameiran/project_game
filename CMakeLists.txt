@@ -6,6 +6,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(SFML 2.6 COMPONENTS graphics window system audio network REQUIRED)
 
+get_target_property(SFML_DIR sfml-graphics INTERFACE_INCLUDE_DIRECTORIES)
+string(REGEX REPLACE "/include.*" "" SFML_DIR "${SFML_DIR}")
+
 add_executable(${PROJECT_NAME} main.cpp)
 
 target_link_libraries(${PROJECT_NAME} 
