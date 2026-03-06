@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="25" height="19" tilewidth="32" tileheight="32" infinite="0" nextlayerid="3" nextobjectid="85">
+ <editorsettings>
+  <export target="First.tmx" format="tmx"/>
+ </editorsettings>
+ <tileset firstgid="1" name="Ground" tilewidth="32" tileheight="32" tilecount="10" columns="10">
+  <image source="Textures.png" width="320" height="32"/>
+  <tile id="6">
+   <animation>
+    <frame tileid="5" duration="1000"/>
+    <frame tileid="6" duration="1000"/>
+   </animation>
+  </tile>
+ </tileset>
+ <tileset firstgid="11" name="Decorations" tilewidth="32" tileheight="32" tilecount="5" columns="5">
+  <image source="Decorations.png" width="160" height="32"/>
+  <tile id="3">
+   <objectgroup draworder="index" id="4">
+    <object id="3" x="12.003" y="0.0379841">
+     <polygon points="0,0 0.0379841,31.9067 7.4069,31.9067 9.64796,31.9067 9.34409,-0.113952"/>
+    </object>
+   </objectgroup>
+  </tile>
+ </tileset>
+ <tileset firstgid="16" name="Tree" tilewidth="48" tileheight="64" tilecount="1" columns="1">
+  <image source="Tree.png" width="48" height="64"/>
+ </tileset>
+ <tileset firstgid="17" name="Bus Station" tilewidth="48" tileheight="96" tilecount="1" columns="1">
+  <image source="AltTest.png" width="48" height="96"/>
+ </tileset>
+ <layer id="1" name="Ground" width="25" height="19">
+  <data encoding="csv">
+7,7,7,7,3,2,2,2,10,5,5,5,5,5,5,5,5,5,5,9,1,8,8,8,8,
+7,7,7,7,3,2,2,2,10,5,5,5,5,5,5,5,5,5,5,9,1,8,8,8,8,
+7,7,7,7,3,2,2,2,10,5,5,5,5,5,5,5,5,5,5,9,1,8,8,8,8,
+7,7,7,7,3,2,2,2,10,5,5,5,5,5,5,5,5,5,5,9,1,8,8,8,8,
+7,7,7,7,3,2,2,2,10,5,5,5,5,5,5,5,5,5,5,9,1,8,8,8,8,
+7,7,7,7,3,2,2,2,10,5,5,5,5,5,5,5,5,5,5,9,1,8,8,8,8,
+7,7,7,7,3,2,2,2,10,5,5,5,5,5,5,5,5,5,5,9,1,8,8,8,8,
+7,7,7,7,3,2,2,2,10,5,5,5,5,5,5,5,5,5,5,9,1,8,8,8,8,
+7,7,7,7,3,2,2,2,10,5,5,5,5,5,5,5,5,5,5,9,1,8,8,8,8,
+7,7,7,7,3,2,2,2,10,5,5,5,5,5,5,5,5,5,5,9,1,8,8,8,8,
+7,7,7,7,3,2,2,2,10,5,5,5,5,5,5,5,5,5,5,9,1,8,8,8,8,
+7,7,7,7,3,2,2,2,10,5,5,5,5,5,5,5,5,5,5,9,1,8,8,8,8,
+7,7,7,7,3,2,2,2,10,5,5,5,5,5,5,5,5,5,5,9,1,8,8,8,8,
+7,7,7,7,3,2,2,2,10,5,5,5,5,5,5,5,5,5,5,9,1,8,8,8,8,
+7,7,7,7,3,2,2,2,10,5,5,5,5,5,5,5,5,5,5,9,1,8,8,8,8,
+7,7,7,7,3,2,2,2,10,5,5,5,5,5,5,5,5,5,5,9,1,8,8,8,8,
+7,7,7,7,3,2,2,2,10,5,5,5,5,5,5,5,5,5,5,9,1,8,8,8,8,
+7,7,7,7,3,2,2,2,10,5,5,5,5,5,5,5,5,5,5,9,1,8,8,8,8,
+7,7,7,7,3,2,2,2,10,5,5,5,5,5,5,5,5,5,5,9,1,8,8,8,8
+</data>
+ </layer>
+ <objectgroup id="2" name="Decorations">
+  <object id="7" gid="13" x="448" y="608" width="32" height="32"/>
+  <object id="8" gid="13" x="448" y="576" width="32" height="32"/>
+  <object id="9" gid="13" x="448" y="512" width="32" height="32"/>
+  <object id="10" gid="13" x="448" y="544" width="32" height="32"/>
+  <object id="11" gid="13" x="448" y="480" width="32" height="32"/>
+  <object id="12" gid="13" x="448" y="448" width="32" height="32"/>
+  <object id="13" gid="13" x="448" y="416" width="32" height="32"/>
+  <object id="14" gid="13" x="448" y="384" width="32" height="32"/>
+  <object id="15" gid="13" x="448" y="352" width="32" height="32"/>
+  <object id="16" gid="13" x="448" y="320" width="32" height="32"/>
+  <object id="17" gid="13" x="448" y="288" width="32" height="32"/>
+  <object id="18" gid="13" x="448" y="256" width="32" height="32"/>
+  <object id="19" gid="13" x="448" y="224" width="32" height="32"/>
+  <object id="20" gid="13" x="448" y="192" width="32" height="32"/>
+  <object id="21" gid="13" x="448" y="160" width="32" height="32"/>
+  <object id="22" gid="13" x="448" y="128" width="32" height="32"/>
+  <object id="23" gid="13" x="448" y="96" width="32" height="32"/>
+  <object id="24" gid="13" x="448" y="64" width="32" height="32"/>
+  <object id="25" gid="13" x="448" y="32" width="32" height="32"/>
+  <object id="45" gid="11" x="170.828" y="560.442" width="32" height="32"/>
+  <object id="46" gid="11" x="219.894" y="484.956" width="32" height="32"/>
+  <object id="47" gid="11" x="162.336" y="417.019" width="32" height="32"/>
+  <object id="48" gid="11" x="219.894" y="344.364" width="32" height="32"/>
+  <object id="49" gid="11" x="159.253" y="341.839" width="32" height="32"/>
+  <object id="50" gid="11" x="217.187" y="284.138" width="32" height="32"/>
+  <object id="51" gid="11" x="222.724" y="410.414" width="32" height="32"/>
+  <object id="52" gid="11" x="166.11" y="498.166" width="32" height="32"/>
+  <object id="53" gid="11" x="223.668" y="578.37" width="32" height="32"/>
+  <object id="54" gid="11" x="156.503" y="270.962" width="32" height="32"/>
+  <object id="55" gid="16" x="146.099" y="185.502" width="127.066" height="161.519"/>
+  <object id="56" gid="12" x="233.326" y="177.695" width="32" height="32"/>
+  <object id="57" gid="12" x="195.292" y="224.042" width="32" height="32"/>
+  <object id="58" gid="12" x="152.478" y="175.087" width="32" height="32"/>
+  <object id="59" gid="12" x="158.103" y="214.503" width="32" height="32"/>
+  <object id="61" gid="12" x="231.47" y="213.326" width="32" height="32"/>
+  <object id="63" gid="15" x="718.008" y="386.443" width="50" height="50"/>
+  <object id="64" gid="17" x="705.161" y="363.29" width="77.5166" height="154.727"/>
+  <object id="65" gid="14" x="256" y="32" width="32" height="32"/>
+  <object id="66" gid="14" x="256" y="64" width="32" height="32"/>
+  <object id="67" gid="14" x="256" y="96" width="32" height="32"/>
+  <object id="68" gid="14" x="256" y="128" width="32" height="32"/>
+  <object id="69" gid="14" x="256" y="160" width="32" height="32"/>
+  <object id="70" gid="14" x="256" y="192" width="32" height="32"/>
+  <object id="71" gid="14" x="256" y="224" width="32" height="32"/>
+  <object id="72" gid="14" x="256" y="256" width="32" height="32"/>
+  <object id="73" gid="14" x="256" y="288" width="32" height="32"/>
+  <object id="74" gid="14" x="256" y="320" width="32" height="32"/>
+  <object id="75" gid="14" x="256" y="352" width="32" height="32"/>
+  <object id="76" gid="14" x="256" y="384" width="32" height="32"/>
+  <object id="77" gid="14" x="256" y="416" width="32" height="32"/>
+  <object id="78" gid="14" x="256" y="448" width="32" height="32"/>
+  <object id="79" gid="14" x="256" y="480" width="32" height="32"/>
+  <object id="80" gid="14" x="256" y="512" width="32" height="32"/>
+  <object id="81" gid="14" x="256" y="544" width="32" height="32"/>
+  <object id="82" gid="14" x="256" y="576" width="32" height="32"/>
+  <object id="83" gid="14" x="256" y="608" width="32" height="32"/>
+ </objectgroup>
+</map>
