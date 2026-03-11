@@ -9,7 +9,10 @@ find_package(SFML 2.6 COMPONENTS graphics window system audio network REQUIRED)
 get_target_property(SFML_DIR sfml-graphics INTERFACE_INCLUDE_DIRECTORIES)
 string(REGEX REPLACE "/include.*" "" SFML_DIR "${SFML_DIR}")
 
-add_executable(${PROJECT_NAME} main.cpp)
+file(GLOB_RECURSE SOURCES "src/*.cpp")
+add_executable(${PROJECT_NAME} ${SOURCES})
+
+target_include_directories(${PROJECT_NAME} PRIVATE src)
 
 target_link_libraries(${PROJECT_NAME} 
     sfml-graphics
