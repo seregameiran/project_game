@@ -2,12 +2,32 @@
 <map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="25" height="19" tilewidth="32" tileheight="32" infinite="0" nextlayerid="3" nextobjectid="65">
  <tileset firstgid="1" name="Textures2" tilewidth="32" tileheight="32" tilecount="18" columns="18">
   <image source="Textures2.png" width="576" height="32"/>
+  <tile id="1">
+   <objectgroup draworder="index" id="2">
+    <object id="1" x="0.095511" y="-0.191022" width="9.45559" height="32.1872"/>
+   </objectgroup>
+  </tile>
  </tileset>
  <tileset firstgid="19" name="Decorations2" tilewidth="32" tileheight="32" tilecount="6" columns="6">
   <image source="Decorations2.png" width="192" height="32"/>
+  <tile id="1">
+   <objectgroup draworder="index" id="2">
+    <object id="1" x="12.894" y="-1.77636e-15" width="9.26457" height="31.9962"/>
+   </objectgroup>
+  </tile>
+  <tile id="2">
+   <objectgroup draworder="index" id="2">
+    <object id="1" x="13" y="13" width="13" height="19"/>
+   </objectgroup>
+  </tile>
  </tileset>
  <tileset firstgid="25" name="School" tilewidth="208" tileheight="160" tilecount="1" columns="1">
   <image source="School.png" width="208" height="160"/>
+  <tile id="0">
+   <objectgroup draworder="index" id="2">
+    <object id="1" x="1" y="7" width="206" height="147"/>
+   </objectgroup>
+  </tile>
  </tileset>
  <layer id="1" name="Textures" width="25" height="19">
   <data encoding="csv">

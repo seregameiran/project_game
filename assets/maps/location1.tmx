@@ -4,7 +4,7 @@
   <export target="First.tmx" format="tmx"/>
  </editorsettings>
  <tileset firstgid="1" name="Ground" tilewidth="32" tileheight="32" tilecount="10" columns="10">
-  <image source="Textures.png" width="320" height="32"/>
+  <image source="Textures-1.png" width="320" height="32"/>
   <tile id="6">
    <animation>
     <frame tileid="5" duration="1000"/>
@@ -13,7 +13,7 @@
   </tile>
  </tileset>
  <tileset firstgid="11" name="Decorations" tilewidth="32" tileheight="32" tilecount="5" columns="5">
-  <image source="Decorations.png" width="160" height="32"/>
+  <image source="Decorations-1.png" width="160" height="32"/>
   <tile id="3">
    <objectgroup draworder="index" id="4">
     <object id="3" x="12.003" y="0.0379841">
@@ -21,12 +21,27 @@
     </object>
    </objectgroup>
   </tile>
+  <tile id="4">
+   <objectgroup draworder="index" id="2">
+    <object id="1" x="8" y="4" width="16" height="24"/>
+   </objectgroup>
+  </tile>
  </tileset>
  <tileset firstgid="16" name="Tree" tilewidth="48" tileheight="64" tilecount="1" columns="1">
-  <image source="Tree.png" width="48" height="64"/>
+  <image source="Tree-1.png" width="48" height="64"/>
+  <tile id="0">
+   <objectgroup draworder="index" id="2">
+    <object id="1" x="7" y="0" width="34" height="64"/>
+   </objectgroup>
+  </tile>
  </tileset>
  <tileset firstgid="17" name="Bus Station" tilewidth="48" tileheight="96" tilecount="1" columns="1">
-  <image source="AltTest.png" width="48" height="96"/>
+  <image source="Bus-Station-1.png" width="48" height="96"/>
+  <tile id="0">
+   <objectgroup draworder="index" id="2">
+    <object id="1" x="4" y="6" width="39" height="81"/>
+   </objectgroup>
+  </tile>
  </tileset>
  <layer id="1" name="Ground" width="25" height="19">
   <data encoding="csv">
