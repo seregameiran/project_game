@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="25" height="19" tilewidth="32" tileheight="32" infinite="0" nextlayerid="5" nextobjectid="31">
+ <tileset firstgid="1" name="Textures-4" tilewidth="32" tileheight="32" tilecount="5" columns="5">
+  <image source="Textures-4.png" width="160" height="32"/>
+ </tileset>
+ <tileset firstgid="6" name="Carpet-4" tilewidth="64" tileheight="64" tilecount="1" columns="1">
+  <image source="Carpet-4.png" width="64" height="64"/>
+ </tileset>
+ <tileset firstgid="7" name="Caterpillar-4" tilewidth="47" tileheight="29" tilecount="1" columns="1">
+  <image source="Caterpillar-4.png" width="47" height="29"/>
+  <tile id="0">
+   <objectgroup draworder="index" id="2">
+    <object id="2" x="0.161089" y="4.99375">
+     <polygon points="0,0 0.805444,0 0.805444,-0.966532 2.81905,-1.04708 7.73226,4.91321 7.8128,8.77934 10.7929,8.94042 10.7929,4.3494 17.6392,-4.83266 20.6999,-4.3494 21.1832,-2.09415 16.8338,0.724899 14.7396,4.67157 14.0147,8.5377 17.156,9.10151 20.1361,12.3233 22.7941,11.5178 26.7407,11.7595 27.6267,12.5649 30.3652,12.5649 31.1707,11.3568 35.359,11.5178 35.9228,9.74587 37.3726,8.5377 39.7084,8.61825 40.9971,5.71865 45.8297,5.87974 46.7157,7.97389 46.7157,11.1957 44.9438,11.7595 44.2189,13.8536 42.6885,15.8672 39.7084,17.4781 38.6613,20.0555 36.6477,21.1832 29.882,21.3443 27.9489,23.1968 20.9415,23.0357 20.1361,21.9886 17.7198,22.0692 15.5451,23.4384 10.6319,23.4384 4.51048,21.5859 2.73851,16.7532 2.49688,11.4373 6.12137,8.69879 5.87974,7.00736 0,1.77198"/>
+    </object>
+   </objectgroup>
+  </tile>
+ </tileset>
+ <tileset firstgid="8" name="Chair-4" tilewidth="16" tileheight="43" tilecount="1" columns="1">
+  <image source="Chair-4.png" width="16" height="43"/>
+  <tile id="0">
+   <objectgroup draworder="index" id="2">
+    <object id="1" x="0" y="0" width="16" height="43"/>
+   </objectgroup>
+  </tile>
+ </tileset>
+ <tileset firstgid="9" name="Palm-4" tilewidth="64" tileheight="64" tilecount="1" columns="1">
+  <image source="Palm-4.png" width="64" height="64"/>
+  <tile id="0">
+   <objectgroup draworder="index" id="2">
+    <object id="1" x="7" y="1" width="43" height="62"/>
+   </objectgroup>
+  </tile>
+ </tileset>
+ <tileset firstgid="10" name="Aquarium-4" tilewidth="64" tileheight="64" tilecount="3" columns="3">
+  <image source="Aquarium-4.png" width="192" height="64"/>
+  <tile id="0">
+   <objectgroup draworder="index" id="2">
+    <object id="1" x="0" y="0" width="64" height="64"/>
+   </objectgroup>
+   <animation>
+    <frame tileid="0" duration="500"/>
+    <frame tileid="1" duration="500"/>
+    <frame tileid="2" duration="500"/>
+    <frame tileid="1" duration="500"/>
+   </animation>
+  </tile>
+ </tileset>
+ <tileset firstgid="13" name="Walls" tilewidth="32" tileheight="32" tilecount="2" columns="2">
+  <image source="Walls.png" width="64" height="32"/>
+  <tile id="0">
+   <objectgroup draworder="index" id="2">
+    <object id="1" x="0" y="0" width="32" height="32"/>
+    <object id="2" x="0" y="0" width="32" height="32"/>
+    <object id="3" x="0" y="0" width="32" height="32"/>
+    <object id="4" x="0" y="0" width="32" height="32"/>
+   </objectgroup>
+  </tile>
+ </tileset>
+ <layer id="1" name="Tile Layer 1" width="25" height="19">
+  <data encoding="csv">
+14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,
+13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,1,1,1,
+1,1,5,6,0,6,0,6,0,6,0,6,0,6,0,6,0,6,0,6,0,2,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+</data>
+ </layer>
+ <objectgroup id="2" name="Object Layer 1">
+  <object id="1" gid="10" x="95.9821" y="161.225" width="64" height="64"/>
+  <object id="2" gid="10" x="638.974" y="159.982" width="64" height="64"/>
+  <object id="4" gid="2147483657" x="30.1272" y="578.72" width="114.944" height="124.885"/>
+  <object id="5" gid="9" x="655.749" y="578.711" width="114.944" height="124.885"/>
+  <object id="6" gid="8" x="712.546" y="286.622" width="16" height="43"/>
+  <object id="7" gid="8" x="743.728" y="286.622" width="16" height="43"/>
+  <object id="8" gid="8" x="774.909" y="286.622" width="16" height="43"/>
+  <object id="9" gid="8" x="102.399" y="285.779" width="16" height="43"/>
+  <object id="10" gid="8" x="134.424" y="285.779" width="16" height="43"/>
+  <object id="11" gid="8" x="166.448" y="285.779" width="16" height="43"/>
+  <object id="12" gid="8" x="197.63" y="285.779" width="16" height="43"/>
+  <object id="13" gid="8" x="232.182" y="284.936" width="16" height="43"/>
+  <object id="14" gid="8" x="263.364" y="284.936" width="16" height="43"/>
+  <object id="15" gid="8" x="295.388" y="284.936" width="16" height="43"/>
+  <object id="16" gid="8" x="328.255" y="284.936" width="16" height="43"/>
+  <object id="17" gid="8" x="359.436" y="285.779" width="16" height="43"/>
+  <object id="18" gid="8" x="392.303" y="285.779" width="16" height="43"/>
+  <object id="19" gid="8" x="423.485" y="285.779" width="16" height="43"/>
+  <object id="20" gid="8" x="455.509" y="285.779" width="16" height="43"/>
+  <object id="21" gid="8" x="487.533" y="285.779" width="16" height="43"/>
+  <object id="22" gid="8" x="519.558" y="284.936" width="16" height="43"/>
+  <object id="23" gid="8" x="553.267" y="286.622" width="16" height="43"/>
+  <object id="24" gid="8" x="581.078" y="283.251" width="16" height="43"/>
+  <object id="25" gid="8" x="617.316" y="283.251" width="16" height="43"/>
+  <object id="26" gid="8" x="649.34" y="284.936" width="16" height="43"/>
+  <object id="28" gid="7" x="343.667" y="161.914" width="108.728" height="68.5062"/>
+ </objectgroup>
+ <objectgroup id="4" name="Transition">
+  <object id="30" name="transition" x="770.383" y="64.5886" width="27.1459" height="539.174">
+   <properties>
+    <property name="requiresBoss" type="bool" value="true"/>
+    <property name="spawnX" type="float" value="20"/>
+    <property name="spawnY" type="float" value="250"/>
+    <property name="target" value="assets/maps/location5.tmx"/>
+   </properties>
+  </object>
+ </objectgroup>
+</map>
