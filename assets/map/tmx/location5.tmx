@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="25" height="19" tilewidth="32" tileheight="32" infinite="0" nextlayerid="3" nextobjectid="70">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="25" height="19" tilewidth="32" tileheight="32" infinite="0" nextlayerid="3" nextobjectid="73">
  <tileset firstgid="1" name="Textures-5" tilewidth="32" tileheight="32" tilecount="2" columns="2">
   <image source="Textures-5.png" width="64" height="32"/>
  </tileset>
@@ -55,6 +55,14 @@
   <tile id="0">
    <objectgroup draworder="index" id="2">
     <object id="1" x="6" y="1" width="20" height="30"/>
+   </objectgroup>
+  </tile>
+ </tileset>
+ <tileset firstgid="15" name="Boss-3" tilewidth="32" tileheight="64" tilecount="1" columns="1">
+  <image source="Boss-3.png" width="32" height="64"/>
+  <tile id="0">
+   <objectgroup draworder="index" id="2">
+    <object id="1" x="1" y="0" width="30" height="64"/>
    </objectgroup>
   </tile>
  </tileset>
@@ -151,5 +159,11 @@
   <object id="67" gid="7" x="452.342" y="571.444" width="32" height="32"/>
   <object id="68" gid="7" x="178.975" y="537.943" width="32" height="32"/>
   <object id="69" gid="14" x="478.413" y="221.989" width="80.1834" height="83.5064"/>
+  <object id="70" gid="15" x="608.46" y="314.014" width="32" height="64"/>
+  <object id="72" name="boss-3" x="576.58" y="257.148" width="94.7004" height="93.972">
+   <properties>
+    <property name="dialogFile" value="assets/dialogs/boss-3.json"/>
+   </properties>
+  </object>
  </objectgroup>
 </map>

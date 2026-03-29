@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="25" height="19" tilewidth="32" tileheight="32" infinite="0" nextlayerid="3" nextobjectid="13">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="25" height="19" tilewidth="32" tileheight="32" infinite="0" nextlayerid="4" nextobjectid="17">
  <tileset firstgid="1" name="Textures" tilewidth="32" tileheight="32" tilecount="1" columns="1">
   <image source="Textures-3.png" width="32" height="32"/>
  </tileset>
@@ -40,10 +40,28 @@
    </objectgroup>
   </tile>
  </tileset>
+ <tileset firstgid="6" name="Walls" tilewidth="32" tileheight="32" tilecount="2" columns="2">
+  <image source="Walls.png" width="64" height="32"/>
+  <tile id="0">
+   <objectgroup draworder="index" id="2">
+    <object id="2" x="0" y="0" width="32" height="32"/>
+    <object id="3" x="0" y="0" width="32" height="32"/>
+    <object id="4" x="0" y="0" width="32" height="32"/>
+   </objectgroup>
+  </tile>
+ </tileset>
+ <tileset firstgid="8" name="Boss-1" tilewidth="32" tileheight="64" tilecount="1" columns="1">
+  <image source="Boss-1.png" width="32" height="64"/>
+  <tile id="0">
+   <objectgroup draworder="index" id="2">
+    <object id="1" x="5" y="0" width="22" height="64"/>
+   </objectgroup>
+  </tile>
+ </tileset>
  <layer id="1" name="Textures" width="25" height="19">
   <data encoding="csv">
-1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
+6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
@@ -65,13 +83,29 @@
  </layer>
  <objectgroup id="2" name="Decorations">
   <object id="1" gid="5" x="162.828" y="381.066" width="159.095" height="139.38"/>
-  <object id="2" gid="2" x="23.1612" y="592.855" width="107.915" height="112.984"/>
-  <object id="6" gid="2" x="669.03" y="592.343" width="109.212" height="112.984"/>
-  <object id="7" gid="2" x="679.623" y="123.593" width="107.915" height="112.984"/>
-  <object id="8" gid="2" x="16.6307" y="122.536" width="107.915" height="112.984"/>
-  <object id="9" gid="3" x="455.98" y="144.532" width="142.772" height="148.91"/>
-  <object id="10" gid="4" x="619.388" y="363.681" width="148.91" height="157.095"/>
+  <object id="2" gid="2" x="23.1612" y="592.855" width="75.6809" height="81.9897"/>
+  <object id="6" gid="2" x="669.03" y="592.343" width="83.1768" height="83.2295"/>
+  <object id="7" gid="2" x="693.912" y="114.73" width="74.3308" height="79.3998"/>
+  <object id="8" gid="2" x="-2.1193" y="129.873" width="86.8389" height="86.9488"/>
+  <object id="9" gid="3" x="445.08" y="124.666" width="112.348" height="120.087"/>
+  <object id="10" gid="4" x="663.423" y="340.462" width="101.672" height="106.655"/>
   <object id="11" gid="5" x="292.793" y="181.997" width="127.959" height="108.244"/>
   <object id="12" gid="5" x="409.554" y="538.769" width="135.743" height="114.731"/>
+  <object id="14" gid="8" x="607.934" y="220.693" width="32" height="64"/>
+  <object id="16" name="boss-1" x="581.714" y="162.857" width="88" height="84">
+   <properties>
+    <property name="dialogFile" value="assets/dialogs/boss-1.json"/>
+   </properties>
+  </object>
+ </objectgroup>
+ <objectgroup id="3" name="Transition">
+  <object id="13" name="transition" x="770.179" y="65.0224" width="28.0269" height="536.996">
+   <properties>
+    <property name="requiresBoss" type="bool" value="true"/>
+    <property name="spawnX" type="float" value="20"/>
+    <property name="spawnY" type="float" value="250"/>
+    <property name="target" value="assets/maps/location4.tmx"/>
+   </properties>
+  </object>
  </objectgroup>
 </map>

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="25" height="19" tilewidth="32" tileheight="32" infinite="0" nextlayerid="3" nextobjectid="65">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="25" height="19" tilewidth="32" tileheight="32" infinite="0" nextlayerid="4" nextobjectid="72">
  <tileset firstgid="1" name="Textures2" tilewidth="32" tileheight="32" tilecount="18" columns="18">
-  <image source="Textures2.png" width="576" height="32"/>
+  <image source="Textures-2.png" width="576" height="32"/>
   <tile id="1">
    <objectgroup draworder="index" id="2">
     <object id="1" x="0.095511" y="-0.191022" width="9.45559" height="32.1872"/>
@@ -9,7 +9,7 @@
   </tile>
  </tileset>
  <tileset firstgid="19" name="Decorations2" tilewidth="32" tileheight="32" tilecount="6" columns="6">
-  <image source="Decorations2.png" width="192" height="32"/>
+  <image source="Decorations-2.png" width="192" height="32"/>
   <tile id="1">
    <objectgroup draworder="index" id="2">
     <object id="1" x="12.894" y="-1.77636e-15" width="9.26457" height="31.9962"/>
@@ -22,10 +22,20 @@
   </tile>
  </tileset>
  <tileset firstgid="25" name="School" tilewidth="208" tileheight="160" tilecount="1" columns="1">
-  <image source="School.png" width="208" height="160"/>
+  <image source="School-2.png" width="208" height="160"/>
   <tile id="0">
    <objectgroup draworder="index" id="2">
-    <object id="1" x="1" y="7" width="206" height="147"/>
+    <object id="1" x="6.10412" y="7" width="195.792" height="93.5768"/>
+    <object id="2" x="6.8055" y="101.402" width="79.6243" height="31.9858"/>
+    <object id="3" x="120.457" y="101.402" width="81.3257" height="32.6664"/>
+   </objectgroup>
+  </tile>
+ </tileset>
+ <tileset firstgid="26" name="NPC-2" tilewidth="32" tileheight="64" tilecount="1" columns="1">
+  <image source="NPC-2.png" width="32" height="64"/>
+  <tile id="0">
+   <objectgroup draworder="index" id="2">
+    <object id="1" x="3" y="0" width="26" height="64"/>
    </objectgroup>
   </tile>
  </tileset>
@@ -110,5 +120,20 @@
   <object id="55" gid="20" x="128" y="224" width="32" height="32"/>
   <object id="56" gid="21" x="128" y="192" width="32" height="32"/>
   <object id="64" gid="25" x="250.501" y="256.921" width="313.459" height="256.195"/>
+  <object id="69" gid="26" x="671.913" y="217.525" width="32" height="64"/>
+  <object id="71" name="npc-2" x="647.056" y="166.993" width="84.878" height="78.5366">
+   <properties>
+    <property name="dialogFile" value="assets/dialogs/npc-2.json"/>
+   </properties>
+  </object>
+ </objectgroup>
+ <objectgroup id="3" name="Transition">
+  <object id="67" name="transition" x="385.025" y="161.786" width="46.4037" height="52.6745">
+   <properties>
+    <property name="spawnX" type="float" value="20"/>
+    <property name="spawnY" type="float" value="300"/>
+    <property name="target" value="assets/maps/location3.tmx"/>
+   </properties>
+  </object>
  </objectgroup>
 </map>

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="25" height="19" tilewidth="32" tileheight="32" infinite="0" nextlayerid="5" nextobjectid="31">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="25" height="19" tilewidth="32" tileheight="32" infinite="0" nextlayerid="5" nextobjectid="34">
  <tileset firstgid="1" name="Textures-4" tilewidth="32" tileheight="32" tilecount="5" columns="5">
   <image source="Textures-4.png" width="160" height="32"/>
  </tileset>
@@ -57,6 +57,14 @@
    </objectgroup>
   </tile>
  </tileset>
+ <tileset firstgid="15" name="Boss-2" tilewidth="32" tileheight="64" tilecount="1" columns="1">
+  <image source="Boss-2.png" width="32" height="64"/>
+  <tile id="0">
+   <objectgroup draworder="index" id="2">
+    <object id="1" x="2" y="0" width="28" height="64"/>
+   </objectgroup>
+  </tile>
+ </tileset>
  <layer id="1" name="Tile Layer 1" width="25" height="19">
   <data encoding="csv">
 14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,
@@ -107,6 +115,12 @@
   <object id="25" gid="8" x="617.316" y="283.251" width="16" height="43"/>
   <object id="26" gid="8" x="649.34" y="284.936" width="16" height="43"/>
   <object id="28" gid="7" x="343.667" y="161.914" width="108.728" height="68.5062"/>
+  <object id="31" gid="15" x="671.235" y="282.571" width="32" height="64"/>
+  <object id="33" name="boss-2" x="646.417" y="224.154" width="81.936" height="73.7424">
+   <properties>
+    <property name="dialogFile" value="assets/dialogs/boss-2.json"/>
+   </properties>
+  </object>
  </objectgroup>
  <objectgroup id="4" name="Transition">
   <object id="30" name="transition" x="770.383" y="64.5886" width="27.1459" height="539.174">
