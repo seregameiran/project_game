@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="25" height="19" tilewidth="32" tileheight="32" infinite="0" nextlayerid="4" nextobjectid="90">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="25" height="19" tilewidth="32" tileheight="32" infinite="0" nextlayerid="4" nextobjectid="100">
  <editorsettings>
   <export target="First.tmx" format="tmx"/>
  </editorsettings>
@@ -104,7 +104,11 @@
   <object id="52" gid="11" x="166.11" y="498.166" width="32" height="32"/>
   <object id="53" gid="11" x="223.668" y="578.37" width="32" height="32"/>
   <object id="54" gid="11" x="156.503" y="270.962" width="32" height="32"/>
-  <object id="55" gid="16" x="146.099" y="185.502" width="127.066" height="161.519"/>
+  <object id="55" gid="16" x="146.099" y="185.502" width="127.066" height="161.519">
+   <properties>
+    <property name="collision" type="bool" value="true"/>
+   </properties>
+  </object>
   <object id="56" gid="12" x="233.326" y="177.695" width="32" height="32"/>
   <object id="57" gid="12" x="195.292" y="224.042" width="32" height="32"/>
   <object id="58" gid="12" x="152.478" y="175.087" width="32" height="32"/>
@@ -137,6 +141,12 @@
     <property name="dialogFile" value="assets/dialogs/npc-1.json"/>
    </properties>
   </object>
+  <object id="98" x="270.667" y="-5.33333" width="2.66667" height="610.667">
+   <properties>
+    <property name="collision" type="bool" value="true"/>
+   </properties>
+  </object>
+  <object id="99" x="429.333" y="237.333"/>
  </objectgroup>
  <objectgroup id="3" name="Transition">
   <object id="85" name="transition" x="275.402" y="0.551907" width="529.378" height="27.5316">
