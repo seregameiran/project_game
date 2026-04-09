@@ -20,3 +20,33 @@
 *.tmp
 *.cache
 *.user
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Виртуальное окружение
+.venv/
+venv/
+env/
+ENV/
+
+# PyInstaller
+*.spec
+
+# Игровые временные файлы
+temp_map.png
+*.tmx.bak
+
+# Системные файлы
+.DS_Store
+Thumbs.db
+desktop.ini
