@@ -48,7 +48,7 @@ class MainMenuState:
         self.font_title = pygame.font.Font(self.font_path, 72)
 
         # Список пунктов меню
-        self.menu_items = ["Новая игра", "Выйти"]
+        self.menu_items = ["Начать игру", "Выйти"]
 
         # Индекс выбранного пункта (0 - первый пункт)
         self.selected = 0
