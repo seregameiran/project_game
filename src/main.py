@@ -6,7 +6,7 @@ import pygame
 from core.game import Game
 
 # Константы
-SCREEN_WIDTH = 864
+SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 608
 
 
