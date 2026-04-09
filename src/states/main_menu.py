@@ -37,15 +37,38 @@ class MainMenuState:
         """
         self.game = game
 
-        # Шрифты для заголовка и пунктов меню
-        self.font_title = pygame.font.Font(None, 72)   # крупный шрифт для заголовка
-        self.font_items = pygame.font.Font(None, 48)   # средний шрифт для пунктов
+        # Путь к папке assets/menu
+        self.menu_dir = os.path.join(os.path.dirname(os.path.dirname(
+            os.path.dirname(os.path.abspath(__file__)))), "assets", "menu")
+
+        # Путь к шрифту
+        self.font_path = os.path.join(self.menu_dir, "Compilance-Sans.ttf")
+
+        # Шрифт для заголовка (фиксированный)
+        self.font_title = pygame.font.Font(self.font_path, 72)
 
         # Список пунктов меню
         self.menu_items = ["Новая игра", "Выйти"]
 
         # Индекс выбранного пункта (0 - первый пункт)
         self.selected = 0
+
+        # Текущие размеры шрифтов для каждого пункта (для плавной анимации)
+        self.item_sizes = [48.0] * len(self.menu_items)
+        self.item_sizes[0] = 62.0  # первый выбран по умолчанию
+
+        # Скорость анимации
+        self.anim_speed = 8.0
+
+        # Загружаем фоновое изображение
+        bg_path = os.path.join(self.menu_dir, "image.png")
+        bg = pygame.image.load(bg_path)
+        self.bg = pygame.transform.scale(bg, (800, 608))
+
+        # Создаём затемняющий слой поверх фона
+        self.overlay = pygame.Surface((800, 608))
+        self.overlay.set_alpha(100)  # прозрачность 0-255, 100 = лёгкое затемнение
+        self.overlay.fill((0, 0, 0))
 
     def handle_events(self, events):
         """
@@ -82,39 +105,51 @@ class MainMenuState:
         """
         Обновление логики меню.
 
-        В главном меню нет анимаций или движущихся элементов,
-        поэтому метод пустой. Оставлен для единообразия интерфейса состояний.
+        Плавно меняет размер шрифтов пунктов меню при переключении.
 
         Аргументы:
-            dt: время между кадрами (delta time) - не используется
+            dt: время между кадрами (delta time)
         """
-        pass
+        for i in range(len(self.menu_items)):
+            # Целевой размер — крупный для выбранного, обычный для остальных
+            target = 62.0 if i == self.selected else 48.0
+
+            # Плавно двигаемся к целевому размеру
+            diff = target - self.item_sizes[i]
+            self.item_sizes[i] += diff * self.anim_speed * dt
 
     def draw(self, screen):
         """
         Отрисовка главного меню.
 
         Рисует:
-            - Чёрный фон
-            - Заголовок "MATH RPG" в центре верхней части экрана
-            - Пункты меню с подсветкой выбранного (жёлтый цвет)
+            - Фоновое изображение на весь экран
+            - Полупрозрачное затемнение поверх фона
+            - Заголовок "Billy's Adventure" вверху по центру
+            - Пункты меню с плавной анимацией размера при выборе
 
         Аргументы:
             screen: поверхность Pygame для отрисовки
         """
-        # Заливка экрана чёрным цветом
-        screen.fill((0, 0, 0))
+        # Фоновое изображение
+        screen.blit(self.bg, (0, 0))
+
+        # Полупрозрачное затемнение поверх фона
+        screen.blit(self.overlay, (0, 0))
 
         # Отрисовка заголовка
-        title = self.font_title.render("MATH RPG", True, (255, 255, 255))
-        title_rect = title.get_rect(center=(screen.get_width() // 2, 150))
+        title = self.font_title.render("Billy's Adventure", True, (255, 255, 255))
+        title_rect = title.get_rect(center=(screen.get_width() // 2, 120))
         screen.blit(title, title_rect)
 
-        # Отрисовка пунктов меню
+        # Отрисовка пунктов меню с плавным размером
         for i, item in enumerate(self.menu_items):
-            # Выбранный пункт подсвечивается жёлтым, остальные — белым
+            # Выбранный пункт — жёлтый, остальные — белые
             color = (255, 255, 0) if i == self.selected else (255, 255, 255)
 
-            text = self.font_items.render(item, True, color)
-            text_rect = text.get_rect(center=(screen.get_width() // 2, 300 + i * 60))
+            # Создаём шрифт с текущим анимированным размером
+            font = pygame.font.Font(self.font_path, int(self.item_sizes[i]))
+
+            text = font.render(item, True, color)
+            text_rect = text.get_rect(center=(screen.get_width() // 2, 320 + i * 80))
             screen.blit(text, text_rect)

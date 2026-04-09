@@ -14,7 +14,7 @@ def main():
     """Запуск игры."""
     pygame.init()
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-    pygame.display.set_caption("Math RPG")
+    pygame.display.set_caption("Billy's Adventure")
     
     game = Game(screen)
     game.run()
