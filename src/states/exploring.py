@@ -1,92 +1,163 @@
 """
 Модуль states/exploring.py
-Состояние исследования карты (временная заглушка).
+Состояние исследования карты.
 
-Это временный файл, который будет заменён на полноценную реализацию
-исследования карты с загрузкой TMX, отрисовкой тайлов и управлением игроком.
+Загружает TMX карту, отображает её, управляет игроком и камерой.
 """
 
 import pygame
 import sys
 import os
 
-# Добавляем корневую папку проекта в путь поиска
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+from src.game_state import GameState
+from src.world.map_renderer import TiledMapRenderer
+from src.world.camera import Camera
+from src.entities.player import AnimatedPlayer
 
 
 class ExploringState:
     """
-    Состояние исследования карты (заглушка).
-
-    Временный класс для тестирования перехода из меню в игру.
-    При выборе "Новая игра" в меню игра переключается на это состояние.
+    Состояние исследования карты.
     
-    TODO: Заменить заглушку на полноценную реализацию:
-        - Загрузка карты через TiledMapRenderer
-        - Управление игроком (WASD/стрелки)
-        - Камера, следующая за игроком
-        - Коллизии
-        - Взаимодействие с NPC (клавиша E)
+    Отвечает за:
+        - Загрузку и отрисовку карты
+        - Управление игроком
+        - Камеру, следующую за игроком
+        - Коллизии с препятствиями
+        - Взаимодействие с NPC и боссами (пока заглушки)
     """
-
+    
     def __init__(self, game):
         """
         Инициализация состояния карты.
-
+        
         Аргументы:
-            game: ссылка на главный объект Game (для доступа к screen, change_state и т.д.)
+            game: ссылка на главный объект Game
         """
         self.game = game
-
+        self.screen = game.screen
+        
+        # Параметры карты (пока для первой локации)
+        self.current_location = 1
+        self.map_renderer = None
+        self.player = None
+        self.camera = None
+        
+        # Флаг отладки (показывать коллизии)
+        self.show_debug = False
+        
+        # Загружаем первую карту
+        self.load_location(1)
+    
+    def load_location(self, location_id):
+        """
+        Загружает карту по номеру локации.
+        
+        Аргументы:
+            location_id: номер локации (1-5)
+        """
+        # Путь к TMX файлу
+        tmx_path = f"assets/location{location_id}/location{location_id}.tmx"
+        
+        try:
+            self.map_renderer = TiledMapRenderer(tmx_path, zoom=1.5)
+            print(f"Загружена локация {location_id}: {self.map_renderer.width}x{self.map_renderer.height}")
+            
+            # Создаём игрока в центре карты
+            start_x = self.map_renderer.width // 2
+            start_y = self.map_renderer.height // 2
+            self.player = AnimatedPlayer(start_x, start_y, "assets/character/sprite/Billy.png", scale=1.5)
+            
+            # Создаём камеру
+            self.camera = Camera(
+                self.map_renderer.width,
+                self.map_renderer.height,
+                self.screen.get_width(),
+                self.screen.get_height()
+            )
+            
+        except Exception as e:
+            print(f"Ошибка загрузки локации {location_id}: {e}")
+    
     def handle_events(self, events):
         """
         Обработка событий в состоянии карты.
-
-        Временно ничего не делает. В будущем здесь будет:
-            - Движение игрока (WASD/стрелки)
-            - Взаимодействие с NPC (E)
-            - Открытие паузы (Esc)
-
+        
         Аргументы:
             events: список событий Pygame
         """
-        pass
-
+        for event in events:
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    # Пауза (пока заглушка)
+                    print("Пауза (будет реализовано позже)")
+                elif event.key == pygame.K_F1:
+                    # Включить/выключить отладку коллизий
+                    self.show_debug = not self.show_debug
+                elif event.key == pygame.K_e:
+                    # Проверка взаимодействия с NPC/боссом
+                    self.check_interaction()
+    
+    def check_interaction(self):
+        """Проверяет, есть ли рядом NPC или босс для взаимодействия."""
+        # TODO: реализовать проверку по объектам на карте
+        # Пока просто заглушка
+        print("Взаимодействие (будет реализовано позже)")
+    
     def update(self, dt):
         """
         Обновление логики состояния карты.
-
-        Временно ничего не делает. В будущем здесь будет:
-            - Обновление позиции игрока
-            - Обновление камеры
-            - Проверка коллизий
-            - Проверка взаимодействий
-
+        
         Аргументы:
-            dt: время между кадрами (delta time) для плавного движения
+            dt: время между кадрами (delta time)
         """
-        pass
-
+        if self.player is None or self.camera is None:
+            return
+        
+        # Получаем нажатые клавиши
+        keys = pygame.key.get_pressed()
+        
+        # Обновляем игрока (движение + коллизии)
+        self.player.update(keys, self.map_renderer.check_collision)
+        
+        # Обновляем камеру
+        self.camera.follow(self.player.rect)
+    
     def draw(self, screen):
         """
         Отрисовка состояния карты.
-
-        Временно выводит синий экран с текстом-заглушкой.
-        В будущем здесь будет:
-            - Отрисовка карты (тайлы, объекты)
-            - Отрисовка игрока
-            - Отрисовка HUD (здоровье, урон)
-
+        
         Аргументы:
             screen: поверхность Pygame для отрисовки
         """
-        # Заливка экрана синим цветом (временное решение)
-        screen.fill((0, 0, 255))
-
-        # Шрифт для текста
-        font = pygame.font.Font(None, 36)
-
-        # Текст-заглушка
-        text = font.render("РЕЖИМ КАРТЫ (заглушка)", True, (255, 255, 255))
-        text_rect = text.get_rect(center=(screen.get_width() // 2, screen.get_height() // 2))
-        screen.blit(text, text_rect)
+        if self.map_renderer is None:
+            # Если карта не загружена, показываем ошибку
+            screen.fill((0, 0, 0))
+            font = pygame.font.Font(None, 36)
+            text = font.render("Ошибка загрузки карты", True, (255, 0, 0))
+            screen.blit(text, (screen.get_width() // 2 - 150, screen.get_height() // 2))
+            return
+        
+        # Рисуем карту
+        self.map_renderer.draw(screen, int(self.camera.x), int(self.camera.y))
+        
+        # Рисуем коллизии для отладки (если включено)
+        if self.show_debug:
+            self.map_renderer.draw_collisions_debug(screen, int(self.camera.x), int(self.camera.y))
+        
+        # Рисуем игрока
+        self.player.draw(screen, int(self.camera.x), int(self.camera.y))
+        
+        # Отладочная информация
+        font = pygame.font.Font(None, 24)
+        info_text = font.render(
+            f"Позиция: ({self.player.rect.x}, {self.player.rect.y})  "
+            f"Камера: ({int(self.camera.x)}, {int(self.camera.y)})  "
+            f"Коллизий: {len(self.map_renderer.collision_rects)}  "
+            f"F1: отладка",
+            True,
+            (255, 255, 255)
+        )
+        screen.blit(info_text, (10, 10))
