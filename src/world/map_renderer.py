@@ -35,6 +35,12 @@ class TiledMapRenderer:
         self._load_transitions()
         self._load_npcs()
 
+        # Список анимированных тайлов для обновления каждый кадр
+        self.animated_tiles = []
+        self.anim_timer = 0.0
+
+        self._find_animated_tiles()
+
         print(f"Карта: {self.width}x{self.height} | "
               f"коллизий: {len(self.collision_rects)} | "
               f"переходов: {len(self.transitions)} | "
@@ -246,3 +252,57 @@ class TiledMapRenderer:
             if rect.inflate(radius * 2, radius * 2).colliderect(npc["rect"]):
                 return npc
         return None
+
+    def _find_animated_tiles(self):
+        """Находит все анимированные тайлы на карте."""
+        self.animated_tiles = []
+
+        for layer in self.tmx_data.layers:
+            if not isinstance(layer, pytmx.TiledTileLayer):
+                continue
+            for x, y, gid in layer:
+                if not gid:
+                    continue
+                tile_data = self.tmx_data.get_tile_properties_by_gid(gid)
+                if tile_data and "frames" in tile_data:
+                    self.animated_tiles.append({
+                        "x": x * self.tilewidth,
+                        "y": y * self.tileheight,
+                        "frames": tile_data["frames"],
+                        "current_frame": 0,
+                        "timer": 0.0,
+                    })
+
+    def update(self, dt):
+        """Обновляет анимацию тайлов."""
+        for tile in self.animated_tiles:
+            if not tile["frames"]:
+                continue
+
+            tile["timer"] += dt * 1000  # в миллисекунды
+
+            # Защита от выхода за пределы
+            if tile["current_frame"] >= len(tile["frames"]):
+                tile["current_frame"] = 0
+
+            current = tile["frames"][tile["current_frame"]]
+
+            if tile["timer"] >= current.duration:
+                tile["timer"] = 0.0
+                tile["current_frame"] = (
+                                                tile["current_frame"] + 1
+                                        ) % len(tile["frames"])
+
+                # Перерисовываем этот тайл на map_surface
+                frame_gid = current.gid
+                image = self.tmx_data.get_tile_image_by_gid(frame_gid)
+                if image:
+                    if self.zoom != 1.0:
+                        image = pygame.transform.scale(
+                            image, (self.tilewidth, self.tileheight)
+                        )
+                    self.map_surface.fill(
+                        (0, 0, 0, 0),
+                        (tile["x"], tile["y"], self.tilewidth, self.tileheight)
+                    )
+                    self.map_surface.blit(image, (tile["x"], tile["y"]))

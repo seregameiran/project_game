@@ -66,6 +66,11 @@ class ExploringDialogueState:
         self.lines = []
         self.portraits = {}
 
+        self.displayed_chars = 0  # сколько символов уже показано
+        self.text_speed = 30  # символов в секунду
+        self.text_timer = 0.0
+        self.text_done = False  # весь текст выведен?
+
         # Загружаем реплики из JSON
         try:
             with open(dialog_file, "r", encoding="utf-8") as f:
@@ -93,12 +98,21 @@ class ExploringDialogueState:
         """
         for event in events:
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_e or event.key == pygame.K_RETURN:
-                    self.current_index += 1
+                if event.key == pygame.K_e or event.key == pygame.K_RETURN or event.unicode.lower() == "у":
+                    if not self.text_done:
+                        # Показываем весь текст сразу
+                        self.text_done = True
+                        if self.lines and self.current_index < len(self.lines):
+                            self.displayed_chars = len(self.lines[self.current_index].get("text", ""))
+                    else:
+                        # Переходим к следующей реплике
+                        self.current_index += 1
+                        self.displayed_chars = 0
+                        self.text_timer = 0.0
+                        self.text_done = False
 
-                    # Диалог закончился — возвращаемся в exploring
-                    if self.current_index >= len(self.lines):
-                        self.game.change_state(GameState.EXPLORING)
+                        if self.current_index >= len(self.lines):
+                            self.game.change_state(GameState.EXPLORING)
 
     def update(self, dt):
         pass
@@ -151,7 +165,9 @@ class ExploringDialogueState:
 
         # Разбиваем текст на строки по ширине
         max_width = w - 200
-        words = text.split()
+        # Показываем только напечатанные символы
+        partial_text = text[:self.displayed_chars]
+        words = partial_text.split()
         lines_to_draw = []
         current_line = ""
 
@@ -170,3 +186,17 @@ class ExploringDialogueState:
         for i, l in enumerate(lines_to_draw):
             surf = self.font.render(l, True, text_color)
             screen.blit(surf, (40, h - 145 + i * 28))
+
+    def update(self, dt):
+        if not self.lines or self.current_index >= len(self.lines):
+            return
+
+        current_text = self.lines[self.current_index].get("text", "")
+
+        if not self.text_done:
+            self.text_timer += dt
+            chars_to_show = int(self.text_timer * self.text_speed)
+            self.displayed_chars = min(chars_to_show, len(current_text))
+
+            if self.displayed_chars >= len(current_text):
+                self.text_done = True

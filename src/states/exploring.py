@@ -82,6 +82,17 @@ class ExploringState:
         # NPC рядом с игроком
         self.nearby_npc = None
 
+        # Поле перехода рядом с игроком
+        self.nearby_transition = None
+
+        self.fade_alpha = 0  # текущая прозрачность (0=прозрачно, 255=черный)
+        self.fading_out = False  # затемняем?
+        self.fading_in = False  # высветляем?
+        self.fade_speed = 400  # скорость затемнения
+        self.pending_transition = None  # переход ожидающий выполнения
+        self.fade_surface = pygame.Surface((game.screen.get_width(), game.screen.get_height()))
+        self.fade_surface.fill((0, 0, 0))
+
     def load_location(self, location_id):
         """
         Загружает карту, создаёт игрока и камеру для указанной локации.
@@ -164,7 +175,7 @@ class ExploringState:
                     # Переключаем отладочный режим коллизий
                     self.show_debug = not self.show_debug
 
-                elif event.key == pygame.K_e:
+                elif event.key == pygame.K_e or event.unicode.lower() == "у":
                     # Проверяем взаимодействие с объектами на карте
                     self._check_interaction()
 
@@ -263,7 +274,9 @@ class ExploringState:
         # Проверяем переход
         transition = self.map_renderer.check_transition(self.player.rect)
         if transition:
-            self.load_location_from_tmx(transition)
+            self.pending_transition = transition
+            self.fading_out = True
+            self.fade_alpha = 0
 
     def update(self, dt):
         """
@@ -300,6 +313,32 @@ class ExploringState:
         self.nearby_npc = self.map_renderer.check_npc_interaction(
             self.player.rect, radius=48
         ) if self.map_renderer else None
+
+        # Проверяем есть ли зона перехода рядом
+        self.nearby_transition = self.map_renderer.check_transition(
+            self.player.rect
+        ) if self.map_renderer else None
+
+        # Обновляем анимацию тайлов карты
+        if self.map_renderer:
+            self.map_renderer.update(dt)
+
+        # Затемнение
+        if self.fading_out:
+            self.fade_alpha += self.fade_speed * dt
+            if self.fade_alpha >= 255:
+                self.fade_alpha = 255
+                self.fading_out = False
+                # Загружаем новую локацию
+                self.load_location_from_tmx(self.pending_transition)
+                self.pending_transition = None
+                self.fading_in = True
+
+        if self.fading_in:
+            self.fade_alpha -= self.fade_speed * dt
+            if self.fade_alpha <= 0:
+                self.fade_alpha = 0
+                self.fading_in = False
 
     def draw(self, screen):
         """
@@ -361,4 +400,16 @@ class ExploringState:
             hint_rect = hint.get_rect(center=(screen.get_width() // 2, screen.get_height() - 40))
             screen.blit(hint, hint_rect)
 
+        # Подсказка "Нажми E" при переходе на другую локацию
+        if self.nearby_transition:
+            hint_font = pygame.font.Font(None, 28)
+            hint = hint_font.render("Нажми E для перехода", True, (0, 255, 255))
+            hint_rect = hint.get_rect(center=(screen.get_width() // 2, screen.get_height() - 40))
+            screen.blit(hint, hint_rect)
+
         screen.blit(info_text, (10, 10))
+
+        # Рисуем затемнение поверх всего
+        if self.fade_alpha > 0:
+            self.fade_surface.set_alpha(int(self.fade_alpha))
+            screen.blit(self.fade_surface, (0, 0))
