@@ -1,14 +1,16 @@
 """
 Точка входа в игру.
 """
-
 import pygame
-from core.game import Game
+import sys
+import os
 
-# Константы
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from src.core.game import Game
+
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 608
-
 
 def main():
     """Запуск игры."""
@@ -18,7 +20,6 @@ def main():
     
     game = Game(screen)
     game.run()
-
 
 if __name__ == "__main__":
     main()

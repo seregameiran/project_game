@@ -1,6 +1,6 @@
 """
 Модуль world/map_renderer.py
-Рендерер карты из TMX файла с поддержкой изометрической проекции и масштаба.
+Рендерер карты из TMX файла.
 """
 
 import pygame
@@ -9,156 +9,229 @@ from pytmx.util_pygame import load_pygame
 
 
 class TiledMapRenderer:
-    """Класс для загрузки и отрисовки TMX карты с поддержкой изометрической проекции"""
-    
+
     def __init__(self, filename, zoom=1.0):
         self.zoom = zoom
-        
-        # Загружаем карту из TMX файла
         self.tmx_data = load_pygame(filename)
-        
-        # Определяем ориентацию карты
         self.orientation = getattr(self.tmx_data, 'orientation', 'orthogonal')
-        print(f"📐 Ориентация карты: {self.orientation}")
-        
-        # Размеры карты в пикселях (оригинальные)
+
         self.orig_tilewidth = self.tmx_data.tilewidth
         self.orig_tileheight = self.tmx_data.tileheight
-        
-        # Размеры с учётом зума
         self.tilewidth = int(self.orig_tilewidth * zoom)
         self.tileheight = int(self.orig_tileheight * zoom)
-        
-        if self.orientation == 'isometric':
-            # Для изометрической карты размеры рассчитываются иначе
-            self.width = (self.tmx_data.width + self.tmx_data.height) * self.tilewidth // 2
-            self.height = (self.tmx_data.height + self.tmx_data.width) * self.tileheight // 2
-        else:
-            self.width = self.tmx_data.width * self.tilewidth
-            self.height = self.tmx_data.height * self.tileheight
-        
-        # Создаем поверхность для всей карты
+
+        self.width = self.tmx_data.width * self.tilewidth
+        self.height = self.tmx_data.height * self.tileheight
+
         self.map_surface = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
-        
-        # Список коллизий
+
         self.collision_rects = []
-        
-        # Рендерим карту один раз при создании
+        self.transitions = []
+        self.npcs = []
+
         self._render_map()
         self._load_collisions()
-        
-        print(f"📏 Размер карты: {self.width}x{self.height}")
-    
+        self._load_transitions()
+        self._load_npcs()
+
+        print(f"Карта: {self.width}x{self.height} | "
+              f"коллизий: {len(self.collision_rects)} | "
+              f"переходов: {len(self.transitions)} | "
+              f"NPC: {len(self.npcs)}")
+
+    # ------------------------------------------------------------------ #
+    #  РЕНДЕР                                                              #
+    # ------------------------------------------------------------------ #
+
     def _render_map(self):
-        """Рендерит всю карту на внутреннюю поверхность"""
-        
-        # Заливаем фон
         if self.tmx_data.background_color:
             self.map_surface.fill(pygame.Color(self.tmx_data.background_color))
         else:
             self.map_surface.fill((0, 0, 0, 0))
-        
-        # Отрисовываем все видимые слои
+
         for layer in self.tmx_data.visible_layers:
             if isinstance(layer, pytmx.TiledTileLayer):
                 self._render_tile_layer(layer)
             elif isinstance(layer, pytmx.TiledObjectGroup):
                 self._render_object_layer(layer)
-            elif isinstance(layer, pytmx.TiledImageLayer):
-                if layer.image:
-                    img = layer.image
-                    if self.zoom != 1.0:
-                        img = pygame.transform.scale(img, (int(img.get_width() * self.zoom), int(img.get_height() * self.zoom)))
-                    self.map_surface.blit(img, (0, 0))
-    
+
     def _render_tile_layer(self, layer):
-        """Отрисовка тайлового слоя с поддержкой изометрической проекции"""
         for x, y, image in layer.tiles():
             if image:
                 if self.zoom != 1.0:
                     image = pygame.transform.scale(image, (self.tilewidth, self.tileheight))
-                
-                if self.orientation == 'isometric':
-                    # Для изометрической карты тайлы рисуются со смещением
-                    screen_x = (x - y) * (self.tilewidth // 2)
-                    screen_y = (x + y) * (self.tileheight // 2)
-                    self.map_surface.blit(image, (screen_x, screen_y))
-                else:
-                    # Для ортогональной карты
-                    self.map_surface.blit(image, (x * self.tilewidth, y * self.tileheight))
-    
+                self.map_surface.blit(image, (x * self.tilewidth, y * self.tileheight))
+
     def _render_object_layer(self, layer):
-        """Отрисовка слоя объектов с поддержкой изометрической проекции"""
+        if layer.name in ("Transition",):
+            return
+
         for obj in layer:
             if obj.image:
-                # Получаем правильные координаты для отрисовки
-                render_x, render_y = self._get_render_position(obj.x, obj.y)
-                
                 img = obj.image
-                if self.zoom != 1.0:
-                    img = pygame.transform.scale(img, (int(img.get_width() * self.zoom), int(img.get_height() * self.zoom)))
-                
-                # Масштабируем изображение под размер объекта, если нужно
-                if obj.width > 0 and obj.height > 0:
-                    img = pygame.transform.scale(img, (int(obj.width * self.zoom), int(obj.height * self.zoom)))
-                
-                self.map_surface.blit(img, (render_x, render_y))
-    
-    def _get_render_position(self, x, y):
-        """
-        Преобразует координаты из Tiled в экранные координаты
-        с учётом изометрической проекции и масштаба.
-        """
-        if self.orientation == 'isometric':
-            # В изометрической проекции позиция объекта преобразуется
-            screen_x = (x - y) * (self.tilewidth // 2) / (self.orig_tilewidth / 2) if self.orig_tilewidth > 0 else x
-            screen_y = (x + y) * (self.tileheight // 2) / (self.orig_tileheight / 2) if self.orig_tileheight > 0 else y
-            
-            return int(screen_x), int(screen_y)
-        else:
-            # Для ортогональной карты используем координаты как есть с учётом зума
-            return int(x * self.zoom), int(y * self.zoom)
-    
+                if obj.width and obj.height:
+                    img = pygame.transform.scale(
+                        img,
+                        (int(obj.width * self.zoom), int(obj.height * self.zoom))
+                    )
+                self.map_surface.blit(
+                    img,
+                    (int(obj.x * self.zoom), int(obj.y * self.zoom))
+                )
+
+    # ------------------------------------------------------------------ #
+    #  КОЛЛИЗИИ                                                            #
+    # ------------------------------------------------------------------ #
+
     def _load_collisions(self):
-        """Загружает коллизии из слоя collision"""
         self.collision_rects = []
-        
-        for obj in self.tmx_data.objects:
-            # Проверяем, является ли объект коллизией
-            is_collision = False
-            
-            if obj.properties.get('collision', False):
-                is_collision = True
-            elif obj.properties.get('solid', False):
-                is_collision = True
-            elif hasattr(obj, 'type') and obj.type in ['collision', 'wall', 'block']:
-                is_collision = True
-            
-            if is_collision:
-                render_x, render_y = self._get_render_position(obj.x, obj.y)
-                rect = pygame.Rect(render_x, render_y, obj.width * self.zoom, obj.height * self.zoom)
-                self.collision_rects.append(rect)
-        
-        print(f"🟢 Загружено коллизий: {len(self.collision_rects)}")
-    
+
+        # Шаг 1: словарь gid -> список фигур (local_x, local_y, w, h)
+        collider_map = {}
+
+        for gid, colliders in self.tmx_data.get_tile_colliders():
+            shapes = []
+            for obj in colliders:
+                if hasattr(obj, 'points') and obj.points:
+                    xs = [p[0] + obj.x for p in obj.points]
+                    ys = [p[1] + obj.y for p in obj.points]
+                    shapes.append((
+                        min(xs), min(ys),
+                        max(xs) - min(xs),
+                        max(ys) - min(ys)
+                    ))
+                else:
+                    shapes.append((obj.x, obj.y, obj.width, obj.height))
+            collider_map[gid] = shapes
+
+        # Шаг 2: тайловые слои
+        for layer in self.tmx_data.layers:
+            if not isinstance(layer, pytmx.TiledTileLayer):
+                continue
+            for tx, ty, gid in layer:
+                if not gid or gid not in collider_map:
+                    continue
+                world_x = tx * self.orig_tilewidth
+                world_y = ty * self.orig_tileheight
+                for (lx, ly, lw, lh) in collider_map[gid]:
+                    self.collision_rects.append(pygame.Rect(
+                        int((world_x + lx) * self.zoom),
+                        int((world_y + ly) * self.zoom),
+                        int(lw * self.zoom),
+                        int(lh * self.zoom)
+                    ))
+
+        # Шаг 3: объектные слои
+        for layer in self.tmx_data.layers:
+            if not isinstance(layer, pytmx.TiledObjectGroup):
+                continue
+            for obj in layer:
+                if not obj.gid or obj.gid not in collider_map:
+                    continue
+
+                tileset = self.tmx_data.get_tileset_from_gid(obj.gid)
+                orig_w = tileset.tilewidth
+                orig_h = tileset.tileheight
+
+                scale_x = (obj.width / orig_w) if obj.width else 1.0
+                scale_y = (obj.height / orig_h) if obj.height else 1.0
+
+                # pytmx уже нормализует y — используем как есть
+                world_x = obj.x
+                world_y = obj.y
+
+                for (lx, ly, lw, lh) in collider_map[obj.gid]:
+                    self.collision_rects.append(pygame.Rect(
+                        int((world_x + lx * scale_x) * self.zoom),
+                        int((world_y + ly * scale_y) * self.zoom),
+                        int(lw * scale_x * self.zoom),
+                        int(lh * scale_y * self.zoom)
+                    ))
+
+    # ------------------------------------------------------------------ #
+    #  ПЕРЕХОДЫ МЕЖДУ ЛОКАЦИЯМИ                                           #
+    # ------------------------------------------------------------------ #
+
+    def _load_transitions(self):
+        self.transitions = []
+        try:
+            layer = self.tmx_data.get_layer_by_name("Transition")
+        except ValueError:
+            return
+
+        for obj in layer:
+            props = obj.properties
+            if "transition" not in props:
+                continue
+            self.transitions.append({
+                "rect": pygame.Rect(
+                    int(obj.x * self.zoom),
+                    int(obj.y * self.zoom),
+                    int(obj.width * self.zoom),
+                    int(obj.height * self.zoom)
+                ),
+                "tmx_path": props["transition"],
+                "spawn_x": float(props.get("spawnX", 0)),
+                "spawn_y": float(props.get("spawnY", 0)),
+            })
+
+    # ------------------------------------------------------------------ #
+    #  NPC                                                                 #
+    # ------------------------------------------------------------------ #
+
+    def _load_npcs(self):
+        self.npcs = []
+        for layer in self.tmx_data.layers:
+            if not isinstance(layer, pytmx.TiledObjectGroup):
+                continue
+            for obj in layer:
+                if not obj.name or not obj.name.startswith("npc"):
+                    continue
+                self.npcs.append({
+                    "rect": pygame.Rect(
+                        int(obj.x * self.zoom),
+                        int(obj.y * self.zoom),
+                        int(obj.width * self.zoom),
+                        int(obj.height * self.zoom)
+                    ),
+                    "name": obj.name,
+                    "dialog_file": obj.properties.get("dialogFile", None),
+                })
+
+    # ------------------------------------------------------------------ #
+    #  ОТРИСОВКА И УТИЛИТЫ                                                #
+    # ------------------------------------------------------------------ #
+
     def draw(self, screen, camera_x=0, camera_y=0):
-        """Отрисовывает карту на экране с поддержкой камеры"""
         screen.blit(self.map_surface, (-camera_x, -camera_y))
-    
+
     def draw_collisions_debug(self, screen, camera_x=0, camera_y=0):
-        """Рисует коллизии для отладки"""
+        """Красный — коллизии, голубой — переходы, зелёный — NPC."""
         for rect in self.collision_rects:
-            debug_rect = pygame.Rect(
-                rect.x - camera_x,
-                rect.y - camera_y,
-                rect.width,
-                rect.height
-            )
-            pygame.draw.rect(screen, (255, 0, 0), debug_rect, 2)
-    
+            pygame.draw.rect(screen, (255, 0, 0),
+                (rect.x - camera_x, rect.y - camera_y, rect.width, rect.height), 2)
+        for t in self.transitions:
+            r = t["rect"]
+            pygame.draw.rect(screen, (0, 255, 255),
+                (r.x - camera_x, r.y - camera_y, r.width, r.height), 2)
+        for npc in self.npcs:
+            r = npc["rect"]
+            pygame.draw.rect(screen, (0, 255, 0),
+                (r.x - camera_x, r.y - camera_y, r.width, r.height), 2)
+
     def check_collision(self, rect):
-        """Проверяет пересечение с коллизиями"""
-        for collision_rect in self.collision_rects:
-            if rect.colliderect(collision_rect):
-                return True
-        return False
+        return any(rect.colliderect(r) for r in self.collision_rects)
+
+    def check_transition(self, rect):
+        """Возвращает данные перехода если игрок вошёл в зону, иначе None."""
+        for t in self.transitions:
+            if rect.colliderect(t["rect"]):
+                return t
+        return None
+
+    def check_npc_interaction(self, rect, radius=48):
+        """Возвращает ближайшего NPC в радиусе от rect, иначе None."""
+        for npc in self.npcs:
+            if rect.inflate(radius * 2, radius * 2).colliderect(npc["rect"]):
+                return npc
+        return None
