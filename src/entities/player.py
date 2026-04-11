@@ -48,13 +48,13 @@ class AnimatedPlayer:
     # Анимации: имя -> (первый кадр, последний кадр включительно)
     ANIMATIONS = {
         "idle_down":  (0,  1),
-        "walk_down":  (1,  3),
+        "walk_down":  (2,  3),
         "idle_right": (4,  5),
         "walk_right": (5,  7),
         "idle_left":  (8,  9),
         "walk_left":  (9,  11),
         "idle_up":    (12, 13),
-        "walk_up":    (13, 15),
+        "walk_up":    (14, 15),
     }
 
     # Длительность одного кадра анимации (секунд)

@@ -20,6 +20,7 @@ class ExploringDialogueState:
     Показывает диалоговое окно с портретом и текстом.
     Управление:
         E / ENTER — следующая реплика / закрыть диалог
+        ESC — выйти из диалога и вернуться в исследование карты
     """
 
     def __init__(self, game):
@@ -44,13 +45,19 @@ class ExploringDialogueState:
         # Портреты говорящих
         self.portraits = {}
 
-        # Шрифт
+        # Шрифты
         font_path = os.path.join(self.root_dir, "assets", "menu", "Compilance-Sans.ttf")
-        self.font = pygame.font.Font(font_path, 26)
-        self.hint_font = pygame.font.Font(font_path, 18)
+        self.font = pygame.font.Font(font_path, 26)       # основной текст диалога
+        self.hint_font = pygame.font.Font(font_path, 24)  # подсказка (увеличенный)
 
         # Текущая локация (чтобы вернуться после диалога)
         self.location_id = 1
+
+        # Анимация печати текста
+        self.displayed_chars = 0
+        self.text_speed = 30
+        self.text_timer = 0.0
+        self.text_done = False
 
     def start(self, dialog_file, location_id, portrait_paths):
         """
@@ -66,10 +73,10 @@ class ExploringDialogueState:
         self.lines = []
         self.portraits = {}
 
-        self.displayed_chars = 0  # сколько символов уже показано
-        self.text_speed = 30  # символов в секунду
+        self.displayed_chars = 0
+        self.text_speed = 30
         self.text_timer = 0.0
-        self.text_done = False  # весь текст выведен?
+        self.text_done = False
 
         # Загружаем реплики из JSON
         try:
@@ -84,7 +91,6 @@ class ExploringDialogueState:
         for speaker, path in portrait_paths.items():
             try:
                 img = pygame.image.load(path).convert_alpha()
-                # Масштабируем портрет до 96x96
                 self.portraits[speaker] = pygame.transform.scale(img, (96, 96))
             except Exception as e:
                 print(f"Ошибка загрузки портрета {path}: {e}")
@@ -98,6 +104,12 @@ class ExploringDialogueState:
         """
         for event in events:
             if event.type == pygame.KEYDOWN:
+                # Выход по ESC
+                if event.key == pygame.K_ESCAPE:
+                    self.game.change_state(GameState.EXPLORING)
+                    return
+
+                # Далее по E или Enter
                 if event.key == pygame.K_e or event.key == pygame.K_RETURN or event.unicode.lower() == "у":
                     if not self.text_done:
                         # Показываем весь текст сразу
@@ -115,7 +127,19 @@ class ExploringDialogueState:
                             self.game.change_state(GameState.EXPLORING)
 
     def update(self, dt):
-        pass
+        """Обновляет анимацию печати текста."""
+        if not self.lines or self.current_index >= len(self.lines):
+            return
+
+        current_text = self.lines[self.current_index].get("text", "")
+
+        if not self.text_done:
+            self.text_timer += dt
+            chars_to_show = int(self.text_timer * self.text_speed)
+            self.displayed_chars = min(chars_to_show, len(current_text))
+
+            if self.displayed_chars >= len(current_text):
+                self.text_done = True
 
     def draw(self, screen):
         """
@@ -148,10 +172,15 @@ class ExploringDialogueState:
         # Портрет справа
         portrait = self.portraits.get(speaker)
         if portrait:
-            # Центрируем портрет по высоте диалогового окна
             portrait_x = w - 130
-            portrait_y = h - 160 + (140 - 96) // 2  # центр окна по вертикали
+            portrait_y = h - 160 + (140 - 96) // 2
             screen.blit(portrait, (portrait_x, portrait_y))
+
+        # --- ПОДСКАЗКА "Нажмите ESC, чтобы выйти" (левый верхний угол окна) ---
+        hint_text = "Нажмите ESC, чтобы выйти"
+        hint_surf = self.hint_font.render(hint_text, True, (255, 255, 0))  # жёлтый цвет
+        hint_rect = hint_surf.get_rect(topright=(w - 10, 10))
+        screen.blit(hint_surf, hint_rect)
 
         # Цвет текста
         text_colors = {
@@ -163,9 +192,8 @@ class ExploringDialogueState:
         }
         text_color = text_colors.get(color, (255, 255, 255))
 
-        # Разбиваем текст на строки по ширине
+        # Разбиваем текст на строки
         max_width = w - 200
-        # Показываем только напечатанные символы
         partial_text = text[:self.displayed_chars]
         words = partial_text.split()
         lines_to_draw = []
@@ -186,17 +214,3 @@ class ExploringDialogueState:
         for i, l in enumerate(lines_to_draw):
             surf = self.font.render(l, True, text_color)
             screen.blit(surf, (40, h - 145 + i * 28))
-
-    def update(self, dt):
-        if not self.lines or self.current_index >= len(self.lines):
-            return
-
-        current_text = self.lines[self.current_index].get("text", "")
-
-        if not self.text_done:
-            self.text_timer += dt
-            chars_to_show = int(self.text_timer * self.text_speed)
-            self.displayed_chars = min(chars_to_show, len(current_text))
-
-            if self.displayed_chars >= len(current_text):
-                self.text_done = True
