@@ -123,7 +123,7 @@
   <object id="69" gid="26" x="671.913" y="217.525" width="32" height="64"/>
   <object id="71" name="npc-2" x="647.056" y="166.993" width="84.878" height="78.5366">
    <properties>
-    <property name="dialogFile" value="assets/dialogs/npc-2.json"/>
+    <property name="dialogFile" value="assets/location2/npc-2.json"/>
    </properties>
   </object>
  </objectgroup>
@@ -132,7 +132,7 @@
    <properties>
     <property name="spawnX" type="float" value="20"/>
     <property name="spawnY" type="float" value="300"/>
-    <property name="target" value="assets/maps/location3.tmx"/>
+    <property name="target" value="assets/location3/location3.tmx"/>
    </properties>
   </object>
  </objectgroup>

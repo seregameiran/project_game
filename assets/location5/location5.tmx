@@ -162,7 +162,7 @@
   <object id="70" gid="15" x="608.46" y="314.014" width="32" height="64"/>
   <object id="72" name="boss-3" x="576.58" y="257.148" width="94.7004" height="93.972">
    <properties>
-    <property name="dialogFile" value="assets/dialogs/boss-3.json"/>
+    <property name="dialogFile" value="assets/location5/boss-3.json"/>
    </properties>
   </object>
  </objectgroup>

@@ -2,6 +2,7 @@
 Модуль world/map_renderer.py
 Рендерер карты из TMX файла.
 """
+import os
 
 import pygame
 import pytmx
@@ -154,6 +155,11 @@ class TiledMapRenderer:
 
     def _load_transitions(self):
         self.transitions = []
+
+        # Корневая папка проекта
+        root_dir = os.path.dirname(os.path.dirname(
+            os.path.dirname(os.path.abspath(__file__))))
+
         try:
             layer = self.tmx_data.get_layer_by_name("Transition")
         except ValueError:
@@ -170,7 +176,7 @@ class TiledMapRenderer:
                     int(obj.width * self.zoom),
                     int(obj.height * self.zoom)
                 ),
-                "tmx_path": props["transition"],
+                "tmx_path": os.path.join(root_dir, props["transition"]),
                 "spawn_x": float(props.get("spawnX", 0)),
                 "spawn_y": float(props.get("spawnY", 0)),
             })
@@ -181,6 +187,11 @@ class TiledMapRenderer:
 
     def _load_npcs(self):
         self.npcs = []
+
+        # Корневая папка проекта
+        root_dir = os.path.dirname(os.path.dirname(
+            os.path.dirname(os.path.abspath(__file__))))
+
         for layer in self.tmx_data.layers:
             if not isinstance(layer, pytmx.TiledObjectGroup):
                 continue
@@ -195,7 +206,7 @@ class TiledMapRenderer:
                         int(obj.height * self.zoom)
                     ),
                     "name": obj.name,
-                    "dialog_file": obj.properties.get("dialogFile", None),
+                    "dialog_file": os.path.join(root_dir, obj.properties.get("dialogFile", "")),
                 })
 
     # ------------------------------------------------------------------ #

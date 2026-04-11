@@ -94,7 +94,7 @@
   <object id="14" gid="8" x="607.934" y="220.693" width="32" height="64"/>
   <object id="16" name="boss-1" x="581.714" y="162.857" width="88" height="84">
    <properties>
-    <property name="dialogFile" value="assets/dialogs/boss-1.json"/>
+    <property name="dialogFile" value="assets/location3/boss-1.json"/>
    </properties>
   </object>
  </objectgroup>
@@ -104,7 +104,7 @@
     <property name="requiresBoss" type="bool" value="true"/>
     <property name="spawnX" type="float" value="20"/>
     <property name="spawnY" type="float" value="250"/>
-    <property name="target" value="assets/maps/location4.tmx"/>
+    <property name="target" value="assets/location4/location4.tmx"/>
    </properties>
   </object>
  </objectgroup>

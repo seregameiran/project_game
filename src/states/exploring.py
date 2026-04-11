@@ -95,7 +95,8 @@ class ExploringState:
         Аргументы:
             location_id: номер локации от 1 до 5
         """
-        tmx_path = f"assets/location{location_id}/location{location_id}.tmx"
+        root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        tmx_path = os.path.join(root_dir, "assets", f"location{location_id}", f"location{location_id}.tmx")
 
         try:
             # Создаём рендерер карты с масштабом 1.5
@@ -115,7 +116,7 @@ class ExploringState:
             start_y = self.map_renderer.height // 2
             self.player = AnimatedPlayer(
                 start_x, start_y,
-                f"assets/location{location_id}/Billy.png",
+                os.path.join(root_dir, "assets", f"location{location_id}", "Billy.png"),
                 scale=1.5
             )
 
