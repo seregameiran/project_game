@@ -56,7 +56,7 @@ class ExploringState:
                   (для доступа к screen, change_state, running)
         """
         self.game   = game
-        self.screen = game.screen
+        self.screen = game.virtual_screen
 
         # Номер текущей локации (1-5)
         self.current_location = 1
