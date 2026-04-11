@@ -79,6 +79,9 @@ class ExploringState:
         # Загружаем первую локацию при старте
         self.load_location(1)
 
+        # NPC рядом с игроком
+        self.nearby_npc = None
+
     def load_location(self, location_id):
         """
         Загружает карту, создаёт игрока и камеру для указанной локации.
@@ -165,6 +168,59 @@ class ExploringState:
                     # Проверяем взаимодействие с объектами на карте
                     self._check_interaction()
 
+    def load_location_from_tmx(self, transition):
+        """Загружает локацию по данным из перехода TMX."""
+        tmx_path = transition["tmx_path"]
+        spawn_x = transition["spawn_x"]
+        spawn_y = transition["spawn_y"]
+
+        try:
+            self.map_renderer = TiledMapRenderer(tmx_path, zoom=1.5)
+            self.map_bounds = pygame.Rect(
+                0, 0,
+                self.map_renderer.width,
+                self.map_renderer.height
+            )
+
+            # Определяем номер локации из пути
+            for i in range(1, 6):
+                if f"location{i}" in tmx_path:
+                    self.current_location = i
+                    break
+
+            root_dir = os.path.dirname(os.path.dirname(
+                os.path.dirname(os.path.abspath(__file__))))
+
+            self.player = AnimatedPlayer(
+                int(spawn_x * 1.5), int(spawn_y * 1.5),
+                os.path.join(root_dir, "assets",
+                             f"location{self.current_location}", "Billy.png"),
+                scale=1.5
+            )
+
+            self.camera = Camera(
+                self.map_renderer.width,
+                self.map_renderer.height,
+                self.screen.get_width(),
+                self.screen.get_height()
+            )
+
+            print(f"Переход на локацию {self.current_location}")
+
+        except Exception as e:
+            print(f"Ошибка перехода: {e}")
+
+    def draw_world(self, screen):
+        """Рисует только карту и игрока (без UI) — для использования в диалоге."""
+        if self.map_renderer is None:
+            screen.fill((0, 0, 0))
+            return
+
+        cam_x = int(self.camera.x)
+        cam_y = int(self.camera.y)
+        self.map_renderer.draw(screen, cam_x, cam_y)
+        self.player.draw(screen, cam_x, cam_y)
+
     def _check_interaction(self):
         """
         Проверяет, есть ли рядом с игроком объект для взаимодействия.
@@ -178,21 +234,36 @@ class ExploringState:
         if self.map_renderer is None or self.player is None:
             return
 
-        # Проверяем NPC в радиусе 48 пикселей от игрока
+            # Проверяем NPC
         npc = self.map_renderer.check_npc_interaction(self.player.rect, radius=48)
         if npc:
-            print(f"Взаимодействие с NPC: {npc['name']}, "
-                  f"диалог: {npc['dialog_file']}")
-            # TODO: переключиться в состояние EXPLORING_DIALOGUE
+            root_dir = os.path.dirname(os.path.dirname(
+                os.path.dirname(os.path.abspath(__file__))))
+
+            # Пути к портретам
+            portrait_paths = {
+                "billy": os.path.join(root_dir, "assets",
+                                      f"location{self.current_location}", "Billy-Head.png"),
+                f"npc-{self.current_location}": os.path.join(root_dir, "assets",
+                                                             f"location{self.current_location}",
+                                                             f"NPC-{self.current_location}-Head.png"),
+            }
+
+            # Запускаем диалог
+            dialogue_state = self.game.states.get(GameState.DIALOGUE)
+            if dialogue_state:
+                dialogue_state.start(
+                    npc["dialog_file"],
+                    self.current_location,
+                    portrait_paths
+                )
+                self.game.change_state(GameState.DIALOGUE)
             return
 
-        # Проверяем зону перехода между локациями
+        # Проверяем переход
         transition = self.map_renderer.check_transition(self.player.rect)
         if transition:
-            print(f"Переход на локацию: {transition['tmx_path']}, "
-                  f"спавн: ({transition['spawn_x']}, {transition['spawn_y']})")
-            # TODO: переключиться в состояние TRANSITION_LOCATION
-            return
+            self.load_location_from_tmx(transition)
 
     def update(self, dt):
         """
@@ -224,6 +295,11 @@ class ExploringState:
 
         # Обновляем камеру — она следует за игроком
         self.camera.follow(self.player.rect)
+
+        # Проверяем есть ли NPC рядом
+        self.nearby_npc = self.map_renderer.check_npc_interaction(
+            self.player.rect, radius=48
+        ) if self.map_renderer else None
 
     def draw(self, screen):
         """
@@ -278,4 +354,11 @@ class ExploringState:
             True,
             (255, 255, 255)
         )
+        # Подсказка "Нажми E" если рядом NPC
+        if self.nearby_npc:
+            hint_font = pygame.font.Font(None, 28)
+            hint = hint_font.render("Нажми E для взаимодействия", True, (255, 255, 0))
+            hint_rect = hint.get_rect(center=(screen.get_width() // 2, screen.get_height() - 40))
+            screen.blit(hint, hint_rect)
+
         screen.blit(info_text, (10, 10))

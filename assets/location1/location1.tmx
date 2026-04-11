@@ -142,7 +142,7 @@
   <object id="85" name="transition" x="275.402" y="0.551907" width="529.378" height="27.5316">
    <properties>
     <property name="spawnX" type="float" value="400"/>
-    <property name="spawnY" type="float" value="20"/>
+    <property name="spawnY" type="float" value="560"/>
     <property name="transition" value="assets/location2/location2.tmx"/>
    </properties>
   </object>

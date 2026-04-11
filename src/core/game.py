@@ -6,6 +6,7 @@
 import pygame
 import sys
 import os
+from src.states.exploring_dialogue import ExploringDialogueState
 
 #Корневая папка проекта в путь поиска
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -38,6 +39,7 @@ class Game:
         self.states = {
             GameState.MAIN_MENU: MainMenuState(self),
             GameState.EXPLORING: ExploringState(self),
+            GameState.DIALOGUE: ExploringDialogueState(self),
         }
         
         self.current_state = self.states[self.state]
