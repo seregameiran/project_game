@@ -93,7 +93,7 @@ class ExploringState:
         self.fading_in = False  # высветляем?
         self.fade_speed = 400  # скорость затемнения
         self.pending_transition = None  # переход ожидающий выполнения
-        self.fade_surface = pygame.Surface((game.screen.get_width(), game.screen.get_height()))
+        self.fade_surface = pygame.Surface((game.virtual_screen.get_width(), game.virtual_screen.get_height()))
         self.fade_surface.fill((0, 0, 0))
 
     def load_location(self, location_id):
@@ -365,6 +365,7 @@ class ExploringState:
         Аргументы:
             screen: поверхность Pygame для отрисовки
         """
+        screen.fill((0, 0, 0)) # Очистка экрана
         if self.map_renderer is None:
             # Карта не загружена — показываем ошибку
             screen.fill((0, 0, 0))
