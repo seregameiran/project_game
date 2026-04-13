@@ -16,6 +16,8 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from src.game_state import GameState
+from src.core.audio_manager import SoundType
+
 
 
 class MainMenuState:
@@ -135,6 +137,8 @@ class MainMenuState:
         self.overlay.set_alpha(100)  # 100 из 255 — лёгкое затемнение
         self.overlay.fill((0, 0, 0))
 
+        self.last_selected = 0
+
     def _get_font(self, size: int) -> pygame.font.Font:
         """
         Возвращает шрифт нужного размера из кеша.
@@ -178,14 +182,22 @@ class MainMenuState:
 
                 # Навигация вверх по меню
                 if event.key == pygame.K_UP or event.key == pygame.K_w:
+                    old_selected = self.selected
                     self.selected = (self.selected - 1) % len(self.menu_items)
+                    if self.selected != old_selected:
+                        # Звук наведения на пункт меню
+                        self.game.audio.play_sound(SoundType.UI_HOVER)
 
                 # Навигация вниз по меню
                 elif event.key == pygame.K_DOWN or event.key == pygame.K_s:
+                    old_selected = self.selected
                     self.selected = (self.selected + 1) % len(self.menu_items)
+                    if self.selected != old_selected:
+                        self.game.audio.play_sound(SoundType.UI_HOVER)
 
                 # Выбор текущего пункта
                 elif event.key == pygame.K_RETURN:
+                    self.game.audio.play_sound(SoundType.UI_SELECT)
                     if self.selected == 0:
                         # "Начать игру" — переходим в режим исследования карты
                         self.game.change_state(GameState.EXPLORING)

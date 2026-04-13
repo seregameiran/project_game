@@ -18,6 +18,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 from src.game_state import GameState
 from src.states.exploring_dialogue import ExploringDialogueState
 
+from src.core.audio_manager import AudioManager, MusicTrack, SoundType #Audio_manager
+
 
 class Game:
     """
@@ -57,14 +59,21 @@ class Game:
 
         from src.states.main_menu import MainMenuState
         from src.states.exploring import ExploringState
+        from src.states.pause_menu import PauseMenuState
 
         self.states = {
             GameState.MAIN_MENU: MainMenuState(self),
             GameState.EXPLORING: ExploringState(self),
             GameState.DIALOGUE:  ExploringDialogueState(self),
+            GameState.PAUSE: PauseMenuState(self),
         }
 
         self.current_state = self.states[self.state]
+
+        self.audio = AudioManager(enabled=True, music_volume=0.5, sfx_volume=0.7)
+
+        self.audio.play_music(MusicTrack.MAIN_MENU)
+
 
     def _update_scale(self):
         """
@@ -101,12 +110,29 @@ class Game:
         Аргументы:
             new_state: новое состояние из перечисления GameState
         """
+        # if new_state in self.states:
+        #     self.state         = new_state
+        #     self.current_state = self.states[new_state]
+        #     print(f"Переход в состояние: {new_state}")
+        # else:
+        #     print(f"Предупреждение: состояние {new_state} не найдено")
+        """
+        Переключает игру в новое состояние с соответствующей музыкой.
+        """
         if new_state in self.states:
-            self.state         = new_state
+            # Меняем музыку в зависимости от состояния
+            if new_state == GameState.MAIN_MENU:
+                self.audio.play_music(MusicTrack.MAIN_MENU)
+            elif new_state == GameState.EXPLORING:
+                self.audio.play_music(MusicTrack.EXPLORING)
+            elif new_state == GameState.BATTLE:
+                self.audio.play_music(MusicTrack.BATTLE)
+            elif new_state == GameState.CREDITS:
+                self.audio.play_music(MusicTrack.CREDITS)
+
+            self.state = new_state
             self.current_state = self.states[new_state]
             print(f"Переход в состояние: {new_state}")
-        else:
-            print(f"Предупреждение: состояние {new_state} не найдено")
 
     def run(self):
         """

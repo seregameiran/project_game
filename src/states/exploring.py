@@ -23,6 +23,9 @@ from src.world.map_renderer import TiledMapRenderer
 from src.world.camera import Camera
 from src.entities.player import AnimatedPlayer
 
+from src.core.audio_manager import SoundType
+
+
 
 class ExploringState:
     """
@@ -168,8 +171,11 @@ class ExploringState:
             if event.type == pygame.KEYDOWN:
 
                 if event.key == pygame.K_ESCAPE:
-                    # TODO: переключиться в состояние PAUSE_MENU
-                    print("Пауза (будет реализовано позже)")
+                    # Переключаемся в состояние паузы
+                    pause_state = self.game.states.get(GameState.PAUSE)
+                    if pause_state:
+                        pause_state.enter(GameState.EXPLORING)
+                        self.game.change_state(GameState.PAUSE)
 
                 elif event.key == pygame.K_F1:
                     # Переключаем отладочный режим коллизий
@@ -248,6 +254,9 @@ class ExploringState:
             # Проверяем NPC
         npc = self.map_renderer.check_npc_interaction(self.player.rect, radius=48)
         if npc:
+
+            self.game.audio.play_sound(SoundType.INTERACT)
+
             root_dir = os.path.dirname(os.path.dirname(
                 os.path.dirname(os.path.abspath(__file__))))
 
@@ -274,6 +283,7 @@ class ExploringState:
         # Проверяем переход
         transition = self.map_renderer.check_transition(self.player.rect)
         if transition:
+            self.game.audio.play_sound(SoundType.TRANSITION)
             self.pending_transition = transition
             self.fading_out = True
             self.fade_alpha = 0
