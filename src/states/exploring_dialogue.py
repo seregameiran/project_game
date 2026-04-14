@@ -12,6 +12,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 
 from src.game_state import GameState
 
+from src.core.audio_manager import SoundType
+
 
 class ExploringDialogueState:
     """
@@ -58,6 +60,9 @@ class ExploringDialogueState:
         self.text_speed = 30
         self.text_timer = 0.0
         self.text_done = False
+
+        # Кто сейчас говорит (для звука)
+        self.current_speaker = ""
 
     def start(self, dialog_file, location_id, portrait_paths):
         """
@@ -123,23 +128,41 @@ class ExploringDialogueState:
                         self.text_timer = 0.0
                         self.text_done = False
 
+
                         if self.current_index >= len(self.lines):
                             self.game.change_state(GameState.EXPLORING)
 
     def update(self, dt):
-        """Обновляет анимацию печати текста."""
+        """Обновляет анимацию печати текста и воспроизводит звуки."""
         if not self.lines or self.current_index >= len(self.lines):
             return
 
-        current_text = self.lines[self.current_index].get("text", "")
+        current_line = self.lines[self.current_index]
+        current_text = current_line.get("text", "")
+        speaker = current_line.get("speaker", "")
+
+        # Обновляем текущего говорящего
+        if speaker != self.current_speaker:
+            self.current_speaker = speaker
 
         if not self.text_done:
             self.text_timer += dt
             chars_to_show = int(self.text_timer * self.text_speed)
-            self.displayed_chars = min(chars_to_show, len(current_text))
+
+            if chars_to_show > self.displayed_chars:
+                # Воспроизводим звук для NPC
+                if speaker != "billy" and chars_to_show < len(current_text):
+                    self.game.audio.play_sound(SoundType.DIALOG)
+
+                self.displayed_chars = min(chars_to_show, len(current_text))
 
             if self.displayed_chars >= len(current_text):
                 self.text_done = True
+                # Останавливаем звук диалога после завершения реплики NPC
+                if speaker != "billy":
+                    self.game.audio.stop_sound(SoundType.DIALOG)
+        else:
+            self.game.audio.stop_sound(SoundType.DIALOG)
 
     def draw(self, screen):
         """

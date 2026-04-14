@@ -27,6 +27,7 @@ class SoundType(Enum):
     BOSS_HIT = "boss_hit"  # Удар по боссу
     VICTORY = "victory"  # Победа над боссом
     DEFEAT = "defeat"  # Поражение
+    DIALOG = "dialog" #диалог
 
 
 class MusicTrack(Enum):
@@ -107,6 +108,7 @@ class AudioManager:
             SoundType.BOSS_HIT: "boss_hit.wav",
             SoundType.VICTORY: "victory.wav",
             SoundType.DEFEAT: "defeat.wav",
+            SoundType.DIALOG: "dialog.mp3",
         }
 
         # Загружаем звуки
@@ -220,6 +222,23 @@ class AudioManager:
             self.current_music = None
         except Exception as e:
             print(f"Ошибка остановки музыки: {e}")
+
+    def stop_sound(self, sound_type):
+        """
+        Останавливает воспроизведение звукового эффекта.
+
+        Аргументы:
+            sound_type: тип звука из перечисления SoundType
+        """
+        if not self.enabled:
+            return
+
+        sound = self.sounds.get(sound_type)
+        if sound:
+            try:
+                sound.stop()
+            except Exception as e:
+                print(f"Ошибка остановки звука {sound_type}: {e}")
 
     def set_music_volume(self, volume):
         """
