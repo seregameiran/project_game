@@ -132,7 +132,7 @@
    <properties>
     <property name="spawnX" type="float" value="20"/>
     <property name="spawnY" type="float" value="300"/>
-    <property name="target" value="assets/location3/location3.tmx"/>
+    <property name="transition" value="assets/location3/location3.tmx"/>
    </properties>
   </object>
  </objectgroup>

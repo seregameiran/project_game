@@ -104,7 +104,7 @@
     <property name="requiresBoss" type="bool" value="true"/>
     <property name="spawnX" type="float" value="20"/>
     <property name="spawnY" type="float" value="250"/>
-    <property name="target" value="assets/location4/location4.tmx"/>
+    <property name="transition" value="assets/location4/location4.tmx"/>
    </properties>
   </object>
  </objectgroup>
