@@ -90,6 +90,53 @@ class TiledMapRenderer:
     #  КОЛЛИЗИИ                                                            #
     # ------------------------------------------------------------------ #
 
+    @staticmethod
+    def _clip_collider_to_tile_local(lx, ly, lw, lh, tw, th):
+        """
+        Обрезает ось-ориентированный бокс коллизии границами тайла (0..tw, 0..th).
+
+        В Tiled полигоны иногда выходят за край тайла; AABB тогда тоже «висит» ниже
+        или правее картинки, и после масштаба на объекте коллизия визуально съезжает
+        (типично для ямы Hole на локации 3).
+        """
+        ix1 = max(0.0, lx)
+        iy1 = max(0.0, ly)
+        ix2 = min(float(tw), lx + lw)
+        iy2 = min(float(th), ly + lh)
+        w = ix2 - ix1
+        h = iy2 - iy1
+        if w <= 0 or h <= 0:
+            return None
+        return (ix1, iy1, w, h)
+
+    def _flags_for_internal_gid(self, internal_gid):
+        """Флаги отражения/поворота тайла для внутреннего gid (pytmx)."""
+        if not internal_gid:
+            return None
+        for _tiled_gid, variants in self.tmx_data.gidmap.items():
+            for igid, flags in variants:
+                if igid == internal_gid:
+                    return flags
+        return None
+
+    @staticmethod
+    def _transform_local_aabb_for_tile_flags(lx, ly, lw, lh, tw, th, flags):
+        """
+        Зеркалирует локальный AABB коллизии так же, как текстура тайла в Tiled.
+        Без этого отражённый по горизонтали тайл-объект (например пальма) получает
+        коллизию с неотражённого тайла — она визуально «съезжает».
+        """
+        if flags is None:
+            return lx, ly, lw, lh
+        if getattr(flags, "flipped_horizontally", False):
+            lx = tw - lx - lw
+        if getattr(flags, "flipped_vertically", False):
+            ly = th - ly - lh
+        # flipped_diagonally: сложный случай (поворот + отражение); на картах
+        # проекта не используется для коллизий пальмы — при необходимости
+        # расширить отдельно.
+        return lx, ly, lw, lh
+
     def _load_collisions(self):
         self.collision_rects = []
 
@@ -97,19 +144,29 @@ class TiledMapRenderer:
         collider_map = {}
 
         for gid, colliders in self.tmx_data.get_tile_colliders():
+            tileset = self.tmx_data.get_tileset_from_gid(gid)
+            tw, th = tileset.tilewidth, tileset.tileheight
             shapes = []
             for obj in colliders:
                 if hasattr(obj, 'points') and obj.points:
-                    xs = [p[0] + obj.x for p in obj.points]
-                    ys = [p[1] + obj.y for p in obj.points]
-                    shapes.append((
-                        min(xs), min(ys),
-                        max(xs) - min(xs),
-                        max(ys) - min(ys)
-                    ))
+                    # pytmx уже складывает координаты объекта с точками полигона (см. TiledObject.parse_xml)
+                    points = obj.points
+                    xs = []
+                    ys = []
+                    for p in points:
+                        xs.append(getattr(p, "x", p[0]))
+                        ys.append(getattr(p, "y", p[1]))
+                    lx = min(xs)
+                    ly = min(ys)
+                    lw = max(xs) - min(xs)
+                    lh = max(ys) - min(ys)
                 else:
-                    shapes.append((obj.x, obj.y, obj.width, obj.height))
-            collider_map[gid] = shapes
+                    lx, ly, lw, lh = obj.x, obj.y, obj.width, obj.height
+                clipped = self._clip_collider_to_tile_local(lx, ly, lw, lh, tw, th)
+                if clipped is not None:
+                    shapes.append(clipped)
+            if shapes:
+                collider_map[gid] = shapes
 
         # Шаг 2: тайловые слои
         for layer in self.tmx_data.layers:
@@ -118,9 +175,14 @@ class TiledMapRenderer:
             for tx, ty, gid in layer:
                 if not gid or gid not in collider_map:
                     continue
+                tileset = self.tmx_data.get_tileset_from_gid(gid)
+                tw, th = tileset.tilewidth, tileset.tileheight
+                flags = self._flags_for_internal_gid(gid)
                 world_x = tx * self.orig_tilewidth
                 world_y = ty * self.orig_tileheight
                 for (lx, ly, lw, lh) in collider_map[gid]:
+                    lx, ly, lw, lh = self._transform_local_aabb_for_tile_flags(
+                        lx, ly, lw, lh, tw, th, flags)
                     self.collision_rects.append(pygame.Rect(
                         int((world_x + lx) * self.zoom),
                         int((world_y + ly) * self.zoom),
@@ -128,7 +190,8 @@ class TiledMapRenderer:
                         int(lh * self.zoom)
                     ))
 
-        # Шаг 3: объектные слои
+        # Шаг 3: объектные слои — только тайл-объекты, у которых в тайлсете заданы фигуры
+        # коллизии (collider_map). Остальные объекты коллизий не получают.
         for layer in self.tmx_data.layers:
             if not isinstance(layer, pytmx.TiledObjectGroup):
                 continue
@@ -139,6 +202,7 @@ class TiledMapRenderer:
                 tileset = self.tmx_data.get_tileset_from_gid(obj.gid)
                 orig_w = tileset.tilewidth
                 orig_h = tileset.tileheight
+                flags = self._flags_for_internal_gid(obj.gid)
 
                 scale_x = (obj.width / orig_w) if obj.width else 1.0
                 scale_y = (obj.height / orig_h) if obj.height else 1.0
@@ -148,6 +212,8 @@ class TiledMapRenderer:
                 world_y = obj.y
 
                 for (lx, ly, lw, lh) in collider_map[obj.gid]:
+                    lx, ly, lw, lh = self._transform_local_aabb_for_tile_flags(
+                        lx, ly, lw, lh, orig_w, orig_h, flags)
                     self.collision_rects.append(pygame.Rect(
                         int((world_x + lx * scale_x) * self.zoom),
                         int((world_y + ly * scale_y) * self.zoom),
