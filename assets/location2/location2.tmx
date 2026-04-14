@@ -25,9 +25,7 @@
   <image source="School-2.png" width="208" height="160"/>
   <tile id="0">
    <objectgroup draworder="index" id="2">
-    <object id="1" x="6.10412" y="7" width="195.792" height="93.5768"/>
-    <object id="2" x="6.8055" y="101.402" width="79.6243" height="31.9858"/>
-    <object id="3" x="120.457" y="101.402" width="81.3257" height="32.6664"/>
+    <object id="1" x="6.10412" y="7" width="195.349" height="127.652"/>
    </objectgroup>
   </tile>
  </tileset>
@@ -128,7 +126,7 @@
   </object>
  </objectgroup>
  <objectgroup id="3" name="Transition">
-  <object id="67" name="transition" x="385.025" y="161.786" width="46.4037" height="52.6745">
+  <object id="67" name="transition" x="259.84" y="218.082" width="293.07" height="31.193">
    <properties>
     <property name="spawnX" type="float" value="20"/>
     <property name="spawnY" type="float" value="300"/>
