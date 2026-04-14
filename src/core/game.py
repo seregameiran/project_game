@@ -17,6 +17,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 
 from src.game_state import GameState
 from src.states.exploring_dialogue import ExploringDialogueState
+from src.states.transition_location import TransitionLocationState
 
 from src.core.audio_manager import AudioManager, MusicTrack, SoundType #Audio_manager
 
@@ -66,6 +67,7 @@ class Game:
             GameState.EXPLORING: ExploringState(self),
             GameState.DIALOGUE:  ExploringDialogueState(self),
             GameState.PAUSE: PauseMenuState(self),
+            GameState.TRANSITION_LOCATION: TransitionLocationState(self),
         }
 
         self.current_state = self.states[self.state]
