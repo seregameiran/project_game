@@ -111,6 +111,7 @@ class ExploringDialogueState:
             if event.type == pygame.KEYDOWN:
                 # Выход по ESC
                 if event.key == pygame.K_ESCAPE:
+                    self.game.audio.stop_sound(SoundType.DIALOG)
                     self.game.change_state(GameState.EXPLORING)
                     return
 
