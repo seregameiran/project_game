@@ -22,8 +22,21 @@ def main():
     SCREEN_WIDTH  = info.current_w
     SCREEN_HEIGHT = info.current_h
 
-    # Открываем окно на весь экран (но не fullscreen — без смены режима)
-    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.NOFRAME)
+    # На Маке используем обычное окно без NOFRAME
+    # На Windows используем NOFRAME для полноэкранного вида
+    if sys.platform == "darwin":
+        # Mac: обычное окно максимального размера
+        screen = pygame.display.set_mode(
+            (SCREEN_WIDTH, SCREEN_HEIGHT),
+            pygame.RESIZABLE
+        )
+    else:
+        # Windows/Linux: без рамки на весь экран
+        screen = pygame.display.set_mode(
+            (SCREEN_WIDTH, SCREEN_HEIGHT),
+            pygame.NOFRAME
+        )
+
     pygame.display.set_caption("Billy's Adventure")
 
     # Виртуальная поверхность — вся игра рисуется сюда в 800x608

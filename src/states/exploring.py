@@ -8,8 +8,12 @@
     - Движение игрока с коллизиями и ограничением по границам карты
     - Камеру, следующую за игроком
     - Обработку взаимодействия с NPC (клавиша E)
-    - Обработку переходов между локациями (клавиша E у двери)
+    - Обработку переходов между локациями (клавиша E у двери) через состояние TRANSITION_LOCATION
     - Отладочный режим отображения коллизий (клавиша F1)
+
+Примечание:
+    Логика затемнения при переходах между локациями вынесена в состояние TRANSITION_LOCATION.
+    ExploringState больше не управляет fade-эффектами.
 """
 
 import pygame
@@ -22,9 +26,7 @@ from src.game_state import GameState
 from src.world.map_renderer import TiledMapRenderer
 from src.world.camera import Camera
 from src.entities.player import AnimatedPlayer
-
 from src.core.audio_manager import SoundType
-
 
 
 class ExploringState:
@@ -58,7 +60,7 @@ class ExploringState:
             game: ссылка на главный объект Game
                   (для доступа к screen, change_state, running)
         """
-        self.game   = game
+        self.game = game
         self.screen = game.virtual_screen
 
         # Номер текущей локации (1-5)
@@ -87,14 +89,6 @@ class ExploringState:
 
         # Поле перехода рядом с игроком
         self.nearby_transition = None
-
-        self.fade_alpha = 0  # текущая прозрачность (0=прозрачно, 255=черный)
-        self.fading_out = False  # затемняем?
-        self.fading_in = False  # высветляем?
-        self.fade_speed = 400  # скорость затемнения
-        self.pending_transition = None  # переход ожидающий выполнения
-        self.fade_surface = pygame.Surface((game.screen.get_width(), game.screen.get_height()))
-        self.fade_surface.fill((0, 0, 0))
 
     def load_location(self, location_id):
         """
@@ -129,7 +123,7 @@ class ExploringState:
             )
 
             # Создаём игрока в центре карты
-            start_x = self.map_renderer.width  // 2
+            start_x = self.map_renderer.width // 2
             start_y = self.map_renderer.height // 2
             self.player = AnimatedPlayer(
                 start_x, start_y,
@@ -151,45 +145,23 @@ class ExploringState:
         except Exception as e:
             print(f"Ошибка загрузки локации {location_id}: {e}")
             self.map_renderer = None
-            self.player       = None
-            self.camera       = None
-            self.map_bounds   = None
+            self.player = None
+            self.camera = None
+            self.map_bounds = None
 
-    def handle_events(self, events):
+    def load_location_from_tmx(self, transition_data):
         """
-        Обработка событий клавиатуры в состоянии исследования.
+        Загружает локацию по данным из перехода (TMX).
 
-        Реагирует на:
-            ESC  — пауза (TODO: переключение в PAUSE_MENU)
-            F1   — включение/выключение отладки коллизий
-            E    — взаимодействие (NPC или переход между локациями)
+        Используется для загрузки новой локации после подтверждения перехода.
 
         Аргументы:
-            events: список событий Pygame из pygame.event.get()
+            transition_data: dict с ключами tmx_path, spawn_x, spawn_y
+                             (возвращается из map_renderer.check_transition)
         """
-        for event in events:
-            if event.type == pygame.KEYDOWN:
-
-                if event.key == pygame.K_ESCAPE:
-                    # Переключаемся в состояние паузы
-                    pause_state = self.game.states.get(GameState.PAUSE)
-                    if pause_state:
-                        pause_state.enter(GameState.EXPLORING)
-                        self.game.change_state(GameState.PAUSE)
-
-                elif event.key == pygame.K_F1:
-                    # Переключаем отладочный режим коллизий
-                    self.show_debug = not self.show_debug
-
-                elif event.key == pygame.K_e or event.unicode.lower() == "у":
-                    # Проверяем взаимодействие с объектами на карте
-                    self._check_interaction()
-
-    def load_location_from_tmx(self, transition):
-        """Загружает локацию по данным из перехода TMX."""
-        tmx_path = transition["tmx_path"]
-        spawn_x = transition["spawn_x"]
-        spawn_y = transition["spawn_y"]
+        tmx_path = transition_data["tmx_path"]
+        spawn_x = transition_data["spawn_x"]
+        spawn_y = transition_data["spawn_y"]
 
         try:
             self.map_renderer = TiledMapRenderer(tmx_path, zoom=1.5)
@@ -222,13 +194,54 @@ class ExploringState:
                 self.screen.get_height()
             )
 
-            print(f"Переход на локацию {self.current_location}")
+            print(f"Переход на локацию {self.current_location} (спавн: {spawn_x}, {spawn_y})")
 
         except Exception as e:
             print(f"Ошибка перехода: {e}")
+            self.map_renderer = None
+            self.player = None
+            self.camera = None
+            self.map_bounds = None
+
+    def handle_events(self, events):
+        """
+        Обработка событий клавиатуры в состоянии исследования.
+
+        Реагирует на:
+            ESC  — пауза (переключение в PAUSE_MENU)
+            F1   — включение/выключение отладки коллизий
+            E    — взаимодействие (NPC или переход между локациями)
+
+        Аргументы:
+            events: список событий Pygame из pygame.event.get()
+        """
+        for event in events:
+            if event.type == pygame.KEYDOWN:
+
+                if event.key == pygame.K_ESCAPE:
+                    # Переключаемся в состояние паузы
+                    pause_state = self.game.states.get(GameState.PAUSE)
+                    if pause_state:
+                        pause_state.enter(GameState.EXPLORING)
+                        self.game.change_state(GameState.PAUSE)
+
+                elif event.key == pygame.K_F1:
+                    # Переключаем отладочный режим коллизий
+                    self.show_debug = not self.show_debug
+
+                elif event.key == pygame.K_e or event.unicode.lower() == "у":
+                    # Проверяем взаимодействие с объектами на карте
+                    self._check_interaction()
 
     def draw_world(self, screen):
-        """Рисует только карту и игрока (без UI) — для использования в диалоге."""
+        """
+        Рисует только карту и игрока (без UI).
+
+        Используется диалоговым состоянием для отображения фона под окном диалога.
+
+        Аргументы:
+            screen: поверхность Pygame для отрисовки
+        """
         if self.map_renderer is None:
             screen.fill((0, 0, 0))
             return
@@ -244,17 +257,17 @@ class ExploringState:
 
         Порядок проверки:
             1. NPC — если рядом есть NPC, запускает диалог
-            2. Переход — если игрок стоит в зоне перехода, меняет локацию
+            2. Переход — если игрок стоит в зоне перехода,
+               передаёт данные в состояние TRANSITION_LOCATION
 
         Вызывается при нажатии клавиши E.
         """
         if self.map_renderer is None or self.player is None:
             return
 
-            # Проверяем NPC
+        # Проверяем NPC
         npc = self.map_renderer.check_npc_interaction(self.player.rect, radius=48)
         if npc:
-
             self.game.audio.play_sound(SoundType.INTERACT)
 
             root_dir = os.path.dirname(os.path.dirname(
@@ -280,13 +293,16 @@ class ExploringState:
                 self.game.change_state(GameState.DIALOGUE)
             return
 
-        # Проверяем переход
+        # Проверяем переход (дверь, портал и т.п.)
         transition = self.map_renderer.check_transition(self.player.rect)
         if transition:
             self.game.audio.play_sound(SoundType.TRANSITION)
-            self.pending_transition = transition
-            self.fading_out = True
-            self.fade_alpha = 0
+
+            # Передаём данные перехода в состояние TRANSITION_LOCATION
+            transition_state = self.game.states.get(GameState.TRANSITION_LOCATION)
+            if transition_state:
+                transition_state.enter(transition)
+                self.game.change_state(GameState.TRANSITION_LOCATION)
 
     def update(self, dt):
         """
@@ -297,6 +313,7 @@ class ExploringState:
             2. Обновляет позицию игрока (движение + коллизии + границы)
             3. Обновляет анимацию игрока
             4. Обновляет позицию камеры
+            5. Проверяет наличие NPC и зон перехода рядом с игроком
 
         Аргументы:
             dt: время прошедшее с прошлого кадра (секунд, delta time)
@@ -333,23 +350,6 @@ class ExploringState:
         if self.map_renderer:
             self.map_renderer.update(dt)
 
-        # Затемнение
-        if self.fading_out:
-            self.fade_alpha += self.fade_speed * dt
-            if self.fade_alpha >= 255:
-                self.fade_alpha = 255
-                self.fading_out = False
-                # Загружаем новую локацию
-                self.load_location_from_tmx(self.pending_transition)
-                self.pending_transition = None
-                self.fading_in = True
-
-        if self.fading_in:
-            self.fade_alpha -= self.fade_speed * dt
-            if self.fade_alpha <= 0:
-                self.fade_alpha = 0
-                self.fading_in = False
-
     def draw(self, screen):
         """
         Отрисовка состояния исследования.
@@ -358,20 +358,22 @@ class ExploringState:
             1. Карта (все видимые слои TMX)
             2. Отладочные прямоугольники коллизий/переходов/NPC (если F1)
             3. Игрок
-            4. Отладочная строка с позицией и количеством коллизий
+            4. Подсказки (E для взаимодействия, E для перехода)
+            5. Отладочная строка с позицией и количеством коллизий
 
         Если карта не загружена — показывает сообщение об ошибке.
 
         Аргументы:
             screen: поверхность Pygame для отрисовки
         """
+        screen.fill((0, 0, 0))  # Очистка экрана
+
         if self.map_renderer is None:
             # Карта не загружена — показываем ошибку
-            screen.fill((0, 0, 0))
             font = pygame.font.Font(None, 36)
             text = font.render("Ошибка загрузки карты", True, (255, 0, 0))
             screen.blit(text, (
-                screen.get_width()  // 2 - 150,
+                screen.get_width() // 2 - 150,
                 screen.get_height() // 2
             ))
             return
@@ -383,26 +385,12 @@ class ExploringState:
         self.map_renderer.draw(screen, cam_x, cam_y)
 
         # Рисуем отладочные прямоугольники если включено (F1)
-        # Красный   — коллизии
-        # Голубой   — зоны переходов между локациями
-        # Зелёный   — зоны NPC
         if self.show_debug:
             self.map_renderer.draw_collisions_debug(screen, cam_x, cam_y)
 
         # Рисуем игрока поверх карты
         self.player.draw(screen, cam_x, cam_y)
 
-        # Отладочная строка в левом верхнем углу
-        font = pygame.font.Font(None, 24)
-        info_text = font.render(
-            f"Локация: {self.current_location}  "
-            f"Позиция: ({self.player.rect.x}, {self.player.rect.y})  "
-            f"Камера: ({cam_x}, {cam_y})  "
-            f"Коллизий: {len(self.map_renderer.collision_rects)}  "
-            f"F1: отладка",
-            True,
-            (255, 255, 255)
-        )
         # Подсказка "Нажми E" если рядом NPC
         if self.nearby_npc:
             hint_font = pygame.font.Font(None, 28)
@@ -417,9 +405,15 @@ class ExploringState:
             hint_rect = hint.get_rect(center=(screen.get_width() // 2, screen.get_height() - 40))
             screen.blit(hint, hint_rect)
 
+        # Отладочная строка в левом верхнем углу
+        font = pygame.font.Font(None, 24)
+        info_text = font.render(
+            f"Локация: {self.current_location}  "
+            f"Позиция: ({self.player.rect.x}, {self.player.rect.y})  "
+            f"Камера: ({cam_x}, {cam_y})  "
+            f"Коллизий: {len(self.map_renderer.collision_rects)}  "
+            f"F1: отладка",
+            True,
+            (255, 255, 255)
+        )
         screen.blit(info_text, (10, 10))
-
-        # Рисуем затемнение поверх всего
-        if self.fade_alpha > 0:
-            self.fade_surface.set_alpha(int(self.fade_alpha))
-            screen.blit(self.fade_surface, (0, 0))

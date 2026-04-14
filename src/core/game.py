@@ -1,12 +1,6 @@
 """
 Модуль core/game.py
 Главный класс игры.
-
-Использует паттерн виртуального экрана:
-    - Вся игра рисуется на virtual_screen (800x608)
-    - virtual_screen масштабируется на реальный экран через pygame.transform.scale
-    - Логика, коллизии, камера — всё работает в координатах 800x608
-    - Зум карты фиксирован (1.5) и не зависит от разрешения монитора
 """
 
 import pygame
@@ -17,46 +11,40 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 
 from src.game_state import GameState
 from src.states.exploring_dialogue import ExploringDialogueState
-
-from src.core.audio_manager import AudioManager, MusicTrack, SoundType #Audio_manager
+from src.states.transition_location import TransitionLocationState
+from src.core.audio_manager import AudioManager, MusicTrack, SoundType
 
 
 class Game:
     """
     Главный класс игры.
-
-    Хранит виртуальный экран (800x608) и реальный экран монитора.
-    Каждый кадр:
-        1. Рисует текущее состояние на virtual_screen
-        2. Масштабирует virtual_screen на реальный экран
-        3. Показывает результат через pygame.display.flip()
-
-    Благодаря этому вся игровая логика работает в фиксированных
-    координатах 800x608 независимо от разрешения монитора.
     """
+
+    # Константы для управления состояниями
+    STATE_MUSIC_MAP = {
+        GameState.MAIN_MENU: MusicTrack.MAIN_MENU,
+        GameState.EXPLORING: MusicTrack.EXPLORING,
+        GameState.BATTLE: MusicTrack.BATTLE,
+        GameState.CREDITS: MusicTrack.CREDITS,
+    }
 
     def __init__(self, screen, virtual_screen, screen_width, screen_height):
         """
         Инициализация игры.
-
-        Аргументы:
-            screen:         реальная поверхность экрана монитора
-            virtual_screen: виртуальная поверхность 800x608 для отрисовки игры
-            screen_width:   реальная ширина экрана в пикселях
-            screen_height:  реальная высота экрана в пикселях
         """
-        self.screen         = screen
+        self.screen = screen
         self.virtual_screen = virtual_screen
-        self.screen_width   = screen_width
-        self.screen_height  = screen_height
-        self.clock          = pygame.time.Clock()
-        self.running        = True
-        self.state          = GameState.MAIN_MENU
+        self.screen_width = screen_width
+        self.screen_height = screen_height
+        self.clock = pygame.time.Clock()
+        self.running = True
+        self.state = GameState.MAIN_MENU
+        self.show_fps = False
 
-        # Вычисляем масштаб и отступы для центрирования виртуального экрана
-        # на реальном с сохранением пропорций
+        # Вычисляем масштаб
         self._update_scale()
 
+        # Инициализация состояний игры
         from src.states.main_menu import MainMenuState
         from src.states.exploring import ExploringState
         from src.states.pause_menu import PauseMenuState
@@ -64,112 +52,120 @@ class Game:
         self.states = {
             GameState.MAIN_MENU: MainMenuState(self),
             GameState.EXPLORING: ExploringState(self),
-            GameState.DIALOGUE:  ExploringDialogueState(self),
+            GameState.DIALOGUE: ExploringDialogueState(self),
             GameState.PAUSE: PauseMenuState(self),
+            GameState.TRANSITION_LOCATION: TransitionLocationState(self),
         }
 
         self.current_state = self.states[self.state]
 
+        # Инициализация аудио
         self.audio = AudioManager(enabled=True, music_volume=0.5, sfx_volume=0.7)
-
         self.audio.play_music(MusicTrack.MAIN_MENU)
 
-
     def _update_scale(self):
-        """
-        Вычисляет масштаб и отступы для отображения виртуального экрана
-        на реальном с сохранением пропорций (letterbox/pillarbox).
-
-        Результат:
-            self.scale:    коэффициент масштабирования
-            self.offset_x: отступ слева (для центрирования по горизонтали)
-            self.offset_y: отступ сверху (для центрирования по вертикали)
-            self.scaled_w: ширина масштабированного изображения
-            self.scaled_h: высота масштабированного изображения
-        """
+        """Вычисляет масштаб для отображения виртуального экрана."""
         virtual_w = self.virtual_screen.get_width()
         virtual_h = self.virtual_screen.get_height()
 
-        # Берём минимальный масштаб чтобы изображение влезло целиком
-        scale_x = self.screen_width  / virtual_w
+        scale_x = self.screen_width / virtual_w
         scale_y = self.screen_height / virtual_h
         self.scale = min(scale_x, scale_y)
 
-        # Размер масштабированного изображения
         self.scaled_w = int(virtual_w * self.scale)
         self.scaled_h = int(virtual_h * self.scale)
 
-        # Отступы для центрирования (чёрные полосы по краям если нужно)
-        self.offset_x = (self.screen_width  - self.scaled_w) // 2
+        self.offset_x = (self.screen_width - self.scaled_w) // 2
         self.offset_y = (self.screen_height - self.scaled_h) // 2
 
+    def _get_music_for_state(self, state):
+        """Возвращает музыкальный трек для состояния."""
+        return self.STATE_MUSIC_MAP.get(state)
+
     def change_state(self, new_state):
-        """
-        Переключает игру в новое состояние.
+        """Переключает игру в новое состояние."""
+        if new_state not in self.states:
+            print(f"Ошибка: состояние {new_state} не найдено")
+            return False
 
-        Аргументы:
-            new_state: новое состояние из перечисления GameState
-        """
-        # if new_state in self.states:
-        #     self.state         = new_state
-        #     self.current_state = self.states[new_state]
-        #     print(f"Переход в состояние: {new_state}")
-        # else:
-        #     print(f"Предупреждение: состояние {new_state} не найдено")
-        """
-        Переключает игру в новое состояние с соответствующей музыкой.
-        """
-        if new_state in self.states:
-            # Меняем музыку в зависимости от состояния
-            if new_state == GameState.MAIN_MENU:
-                self.audio.play_music(MusicTrack.MAIN_MENU)
-            elif new_state == GameState.EXPLORING:
-                self.audio.play_music(MusicTrack.EXPLORING)
-            elif new_state == GameState.BATTLE:
-                self.audio.play_music(MusicTrack.BATTLE)
-            elif new_state == GameState.CREDITS:
-                self.audio.play_music(MusicTrack.CREDITS)
+        music_track = self._get_music_for_state(new_state)
+        if music_track:
+            self.audio.play_music(music_track)
+        
+        old_state = self.state
+        self.state = new_state
+        self.current_state = self.states[new_state]
 
-            self.state = new_state
-            self.current_state = self.states[new_state]
-            print(f"Переход в состояние: {new_state}")
+        print(f"Переход из {old_state} в {new_state}")
+        return True
+
+    def handle_global_events(self, events):
+        """Обрабатывает глобальные события."""
+        for event in events:
+            if event.type == pygame.QUIT:
+                return False
+            
+            if event.type == pygame.KEYDOWN:
+                # Ctrl+D - отладка
+                if event.key == pygame.K_d and pygame.key.get_mods() & pygame.KMOD_CTRL:
+                    print(f"\n--- ОТЛАДКА ---")
+                    print(f"Состояние: {self.state}")
+                    print(f"FPS: {self.clock.get_fps():.2f}")
+                    print(f"Доступные состояния: {list(self.states.keys())}")
+                    print(f"---------------\n")
+                
+                # Ctrl+F - показать FPS
+                elif event.key == pygame.K_f and pygame.key.get_mods() & pygame.KMOD_CTRL:
+                    self.show_fps = not self.show_fps
+                    print(f"FPS отображение: {'Вкл' if self.show_fps else 'Выкл'}")
+                
+                # Ctrl+M - отключить звук
+                elif event.key == pygame.K_m and pygame.key.get_mods() & pygame.KMOD_CTRL:
+                    self.audio.toggle_mute()
+                    print(f"Звук: {'Выкл' if not self.audio.enabled else 'Вкл'}")
+        
+        return True
 
     def run(self):
-        """
-        Запускает главный игровой цикл.
-
-        Каждый кадр:
-            1. Считает delta time
-            2. Обрабатывает глобальные события (выход)
-            3. Передаёт события текущему состоянию
-            4. Обновляет логику текущего состояния
-            5. Рисует состояние на virtual_screen
-            6. Масштабирует virtual_screen на реальный экран
-            7. Показывает кадр
-        """
+        """Запускает главный игровой цикл."""
+        frame_count = 0
+        fps_timer = 0.0
+        
         while self.running:
-            dt = self.clock.tick(60) / 1000.0
-
+            dt = min(self.clock.tick(60) / 1000.0, 0.033)
+            
             events = pygame.event.get()
-            for event in events:
-                if event.type == pygame.QUIT:
-                    self.running = False
-
-            self.current_state.handle_events(events)
-            self.current_state.update(dt)
-
-            # Рисуем игру на виртуальный экран
-            self.current_state.draw(self.virtual_screen)
-
-            # Масштабируем виртуальный экран на реальный
-            self.screen.fill((0, 0, 0))  # чёрные полосы по краям
+            
+            if not self.handle_global_events(events):
+                self.running = False
+                break
+            
+            if self.current_state:
+                self.current_state.handle_events(events)
+            
+            if self.current_state:
+                self.current_state.update(dt)
+            
+            self.virtual_screen.fill((0, 0, 0))
+            
+            if self.current_state:
+                self.current_state.draw(self.virtual_screen)
+            
+            self.screen.fill((0, 0, 0))
             scaled = pygame.transform.scale(
                 self.virtual_screen,
                 (self.scaled_w, self.scaled_h)
             )
             self.screen.blit(scaled, (self.offset_x, self.offset_y))
-
+            
             pygame.display.flip()
-
+            
+            frame_count += 1
+            fps_timer += dt
+            if fps_timer >= 1.0 and self.show_fps:
+                pygame.display.set_caption(f"Billy's Adventure - FPS: {frame_count}")
+                frame_count = 0
+                fps_timer = 0.0
+        
         pygame.quit()
         sys.exit()
