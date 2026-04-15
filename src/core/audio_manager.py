@@ -28,6 +28,7 @@ class SoundType(Enum):
     VICTORY = "victory"  # Победа над боссом
     DEFEAT = "defeat"  # Поражение
     DIALOG = "dialog" #диалог
+    DIALOG_BILLY = "dialog_billy" #диалог билли
 
 
 class MusicTrack(Enum):
@@ -109,6 +110,7 @@ class AudioManager:
             SoundType.VICTORY: "victory.wav",
             SoundType.DEFEAT: "defeat.wav",
             SoundType.DIALOG: "dialog.mp3",
+            SoundType.DIALOG_BILLY: "dialog_billy.mp3",
         }
 
         # Загружаем звуки

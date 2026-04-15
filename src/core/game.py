@@ -169,3 +169,33 @@ class Game:
         
         pygame.quit()
         sys.exit()
+
+    # Добавьте этот метод в класс Game (в файл src/core/game.py)
+
+    def reset_game(self):
+        """
+        Полный сброс состояния игры для начала новой игры.
+        """
+        print("Сброс игры...")
+
+        # Сбрасываем состояние исследования (перезагружаем первую локацию)
+        exploring_state = self.states.get(GameState.EXPLORING)
+        if exploring_state:
+            exploring_state.load_location(1)
+
+        # Сбрасываем состояние диалога
+        dialogue_state = self.states.get(GameState.DIALOGUE)
+        if dialogue_state:
+            dialogue_state.lines = []
+            dialogue_state.current_index = 0
+            dialogue_state.displayed_chars = 0
+            dialogue_state.text_done = False
+
+        # Сбрасываем состояние перехода
+        transition_state = self.states.get(GameState.TRANSITION_LOCATION)
+        if transition_state:
+            transition_state.transition_data = None
+            transition_state.selected = 1
+            transition_state.appear_progress = 0.0
+
+        print("Игра сброшена до начального состояния")

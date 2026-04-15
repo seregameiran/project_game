@@ -296,8 +296,6 @@ class ExploringState:
         # Проверяем переход (дверь, портал и т.п.)
         transition = self.map_renderer.check_transition(self.player.rect)
         if transition:
-            self.game.audio.play_sound(SoundType.TRANSITION)
-
             # Передаём данные перехода в состояние TRANSITION_LOCATION
             transition_state = self.game.states.get(GameState.TRANSITION_LOCATION)
             if transition_state:

@@ -112,6 +112,7 @@ class ExploringDialogueState:
                 # Выход по ESC
                 if event.key == pygame.K_ESCAPE:
                     self.game.audio.stop_sound(SoundType.DIALOG)
+                    self.game.audio.stop_sound(SoundType.DIALOG_BILLY)
                     self.game.change_state(GameState.EXPLORING)
                     return
 
@@ -154,6 +155,9 @@ class ExploringDialogueState:
                 # Воспроизводим звук для NPC
                 if speaker != "billy" and chars_to_show < len(current_text):
                     self.game.audio.play_sound(SoundType.DIALOG)
+                #Воспроизводим звук для Billy
+                if speaker == "billy" and chars_to_show < len(current_text):
+                    self.game.audio.play_sound(SoundType.DIALOG_BILLY)
 
                 self.displayed_chars = min(chars_to_show, len(current_text))
 
@@ -162,8 +166,12 @@ class ExploringDialogueState:
                 # Останавливаем звук диалога после завершения реплики NPC
                 if speaker != "billy":
                     self.game.audio.stop_sound(SoundType.DIALOG)
+                if speaker == "billy":
+                    self.game.audio.stop_sound(SoundType.DIALOG_BILLY)
         else:
             self.game.audio.stop_sound(SoundType.DIALOG)
+            self.game.audio.stop_sound(SoundType.DIALOG_BILLY)
+
 
     def draw(self, screen):
         """

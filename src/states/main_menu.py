@@ -199,7 +199,8 @@ class MainMenuState:
                 elif event.key == pygame.K_RETURN:
                     self.game.audio.play_sound(SoundType.UI_SELECT)
                     if self.selected == 0:
-                        # "Начать игру" — переходим в режим исследования карты
+                        # "Начать игру" — сбрасываем игру и переходим в режим исследования карты
+                        self.game.reset_game()
                         self.game.change_state(GameState.EXPLORING)
                     elif self.selected == 1:
                         # "Выйти" — завершаем игру
