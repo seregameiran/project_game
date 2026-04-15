@@ -228,6 +228,9 @@ class ExploringState:
                 elif event.key == pygame.K_F1:
                     # Переключаем отладочный режим коллизий
                     self.show_debug = not self.show_debug
+                elif event.key == pygame.K_BACKQUOTE:
+                    # Запасной хоткей для macOS, где F1 часто перехватывается системой
+                    self.show_debug = not self.show_debug
 
                 elif event.key == pygame.K_e or event.unicode.lower() == "у":
                     # Проверяем взаимодействие с объектами на карте
@@ -265,8 +268,30 @@ class ExploringState:
         if self.map_renderer is None or self.player is None:
             return
 
+        # Взаимодействие проверяем небольшими "пробниками" вокруг игрока (центр + стороны),
+        # чтобы можно было подойти к зоне NPC с любой стороны, но без слишком раннего срабатывания.
+        probe_half = 7  # px (должен совпадать с update())
+        pr = self.player.rect
+        probe_points = (
+            pr.center,
+            pr.midbottom,
+            pr.midtop,
+            pr.midleft,
+            pr.midright,
+        )
+        probe_rects = [
+            pygame.Rect(px - probe_half, py - probe_half, probe_half * 2 + 1, probe_half * 2 + 1)
+            for (px, py) in probe_points
+        ]
+
         # Проверяем NPC
-        npc = self.map_renderer.check_npc_interaction(self.player.rect, radius=48)
+        # Старт диалога — только когда игрок действительно в "зелёной зоне" NPC.
+        # (Подсказка "Нажми E" остаётся по радиусу в update().)
+        npc = None
+        for probe_rect in probe_rects:
+            npc = self.map_renderer.check_npc_interaction(probe_rect, radius=0)
+            if npc:
+                break
         if npc:
             self.game.audio.play_sound(SoundType.INTERACT)
 
@@ -335,9 +360,25 @@ class ExploringState:
         self.camera.follow(self.player.rect)
 
         # Проверяем есть ли NPC рядом
-        self.nearby_npc = self.map_renderer.check_npc_interaction(
-            self.player.rect, radius=48
-        ) if self.map_renderer else None
+        probe_half = 7  # px (должен совпадать с _check_interaction)
+        pr = self.player.rect
+        probe_points = (
+            pr.center,
+            pr.midbottom,
+            pr.midtop,
+            pr.midleft,
+            pr.midright,
+        )
+        probe_rects = [
+            pygame.Rect(px - probe_half, py - probe_half, probe_half * 2 + 1, probe_half * 2 + 1)
+            for (px, py) in probe_points
+        ]
+        self.nearby_npc = None
+        if self.map_renderer:
+            for probe_rect in probe_rects:
+                self.nearby_npc = self.map_renderer.check_npc_interaction(probe_rect, radius=0)
+                if self.nearby_npc:
+                    break
 
         # Проверяем есть ли зона перехода рядом
         self.nearby_transition = self.map_renderer.check_transition(
@@ -410,7 +451,7 @@ class ExploringState:
             f"Позиция: ({self.player.rect.x}, {self.player.rect.y})  "
             f"Камера: ({cam_x}, {cam_y})  "
             f"Коллизий: {len(self.map_renderer.collision_rects)}  "
-            f"F1: отладка",
+            f"F1 / `: отладка",
             True,
             (255, 255, 255)
         )

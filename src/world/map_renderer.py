@@ -27,6 +27,7 @@ class TiledMapRenderer:
         self.map_surface = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
 
         self.collision_rects = []
+        self.collision_polygons = []
         self.transitions = []
         self.npcs = []
 
@@ -65,9 +66,17 @@ class TiledMapRenderer:
     def _render_tile_layer(self, layer):
         for x, y, image in layer.tiles():
             if image:
+                # В TMX тайлы могут быть больше базового tilewidth/tileheight (например ковёр 64x64 при сетке 32x32).
+                # Поэтому масштабируем по фактическому размеру изображения и выравниваем по "низу" тайла,
+                # иначе появляются артефакты (в т.ч. чёрные пиксели на прозрачности) и съезжает позиция.
                 if self.zoom != 1.0:
-                    image = pygame.transform.scale(image, (self.tilewidth, self.tileheight))
-                self.map_surface.blit(image, (x * self.tilewidth, y * self.tileheight))
+                    sw = max(1, int(image.get_width() * self.zoom))
+                    sh = max(1, int(image.get_height() * self.zoom))
+                    image = pygame.transform.scale(image, (sw, sh))
+
+                dest_x = x * self.tilewidth
+                dest_y = y * self.tileheight + (self.tileheight - image.get_height())
+                self.map_surface.blit(image, (dest_x, dest_y))
 
     def _render_object_layer(self, layer):
         if layer.name in ("Transition",):
@@ -139,8 +148,11 @@ class TiledMapRenderer:
 
     def _load_collisions(self):
         self.collision_rects = []
+        self.collision_polygons = []
 
-        # Шаг 1: словарь gid -> список фигур (local_x, local_y, w, h)
+        # Шаг 1: словарь gid -> список фигур
+        # - rect: (local_x, local_y, w, h)
+        # - poly: [(x1,y1), (x2,y2), ...] в локальных координатах тайла
         collider_map = {}
 
         for gid, colliders in self.tmx_data.get_tile_colliders():
@@ -149,22 +161,17 @@ class TiledMapRenderer:
             shapes = []
             for obj in colliders:
                 if hasattr(obj, 'points') and obj.points:
-                    # pytmx уже складывает координаты объекта с точками полигона (см. TiledObject.parse_xml)
-                    points = obj.points
-                    xs = []
-                    ys = []
-                    for p in points:
-                        xs.append(getattr(p, "x", p[0]))
-                        ys.append(getattr(p, "y", p[1]))
-                    lx = min(xs)
-                    ly = min(ys)
-                    lw = max(xs) - min(xs)
-                    lh = max(ys) - min(ys)
+                    # Важно: используем полигон как есть (контур из TMX),
+                    # а не AABB, иначе ямы/фигуры превращаются в "квадраты".
+                    pts = []
+                    for p in obj.points:
+                        pts.append((float(getattr(p, "x", p[0])), float(getattr(p, "y", p[1]))))
+                    shapes.append({"type": "poly", "points": pts, "tw": tw, "th": th})
                 else:
                     lx, ly, lw, lh = obj.x, obj.y, obj.width, obj.height
-                clipped = self._clip_collider_to_tile_local(lx, ly, lw, lh, tw, th)
-                if clipped is not None:
-                    shapes.append(clipped)
+                    clipped = self._clip_collider_to_tile_local(lx, ly, lw, lh, tw, th)
+                    if clipped is not None:
+                        shapes.append({"type": "rect", "rect": clipped})
             if shapes:
                 collider_map[gid] = shapes
 
@@ -180,15 +187,24 @@ class TiledMapRenderer:
                 flags = self._flags_for_internal_gid(gid)
                 world_x = tx * self.orig_tilewidth
                 world_y = ty * self.orig_tileheight
-                for (lx, ly, lw, lh) in collider_map[gid]:
-                    lx, ly, lw, lh = self._transform_local_aabb_for_tile_flags(
-                        lx, ly, lw, lh, tw, th, flags)
-                    self.collision_rects.append(pygame.Rect(
-                        int((world_x + lx) * self.zoom),
-                        int((world_y + ly) * self.zoom),
-                        int(lw * self.zoom),
-                        int(lh * self.zoom)
-                    ))
+                for shape in collider_map[gid]:
+                    if shape["type"] == "rect":
+                        lx, ly, lw, lh = shape["rect"]
+                        lx, ly, lw, lh = self._transform_local_aabb_for_tile_flags(
+                            lx, ly, lw, lh, tw, th, flags)
+                        self.collision_rects.append(pygame.Rect(
+                            int((world_x + lx) * self.zoom),
+                            int((world_y + ly) * self.zoom),
+                            int(lw * self.zoom),
+                            int(lh * self.zoom)
+                        ))
+                    else:
+                        pts = shape["points"]
+                        pts = self._transform_local_poly_for_tile_flags(pts, tw, th, flags)
+                        self.collision_polygons.append([
+                            (float(world_x + x) * self.zoom, float(world_y + y) * self.zoom)
+                            for (x, y) in pts
+                        ])
 
         # Шаг 3: объектные слои — только тайл-объекты, у которых в тайлсете заданы фигуры
         # коллизии (collider_map). Остальные объекты коллизий не получают.
@@ -211,15 +227,111 @@ class TiledMapRenderer:
                 world_x = obj.x
                 world_y = obj.y
 
-                for (lx, ly, lw, lh) in collider_map[obj.gid]:
-                    lx, ly, lw, lh = self._transform_local_aabb_for_tile_flags(
-                        lx, ly, lw, lh, orig_w, orig_h, flags)
-                    self.collision_rects.append(pygame.Rect(
-                        int((world_x + lx * scale_x) * self.zoom),
-                        int((world_y + ly * scale_y) * self.zoom),
-                        int(lw * scale_x * self.zoom),
-                        int(lh * scale_y * self.zoom)
-                    ))
+                for shape in collider_map[obj.gid]:
+                    if shape["type"] == "rect":
+                        lx, ly, lw, lh = shape["rect"]
+                        lx, ly, lw, lh = self._transform_local_aabb_for_tile_flags(
+                            lx, ly, lw, lh, orig_w, orig_h, flags)
+                        self.collision_rects.append(pygame.Rect(
+                            int((world_x + lx * scale_x) * self.zoom),
+                            int((world_y + ly * scale_y) * self.zoom),
+                            int(lw * scale_x * self.zoom),
+                            int(lh * scale_y * self.zoom)
+                        ))
+                    else:
+                        pts = shape["points"]
+                        pts = self._transform_local_poly_for_tile_flags(pts, orig_w, orig_h, flags)
+                        self.collision_polygons.append([
+                            (float(world_x + x * scale_x) * self.zoom, float(world_y + y * scale_y) * self.zoom)
+                            for (x, y) in pts
+                        ])
+
+    @staticmethod
+    def _transform_local_poly_for_tile_flags(points, tw, th, flags):
+        """Зеркалит локальные точки полигона так же, как текстура тайла в Tiled."""
+        if flags is None:
+            return points
+        out = []
+        for (x, y) in points:
+            if getattr(flags, "flipped_horizontally", False):
+                x = tw - x
+            if getattr(flags, "flipped_vertically", False):
+                y = th - y
+            out.append((x, y))
+        return out
+
+    @staticmethod
+    def _point_in_poly(px, py, poly):
+        """Ray casting: True если точка внутри полигона."""
+        inside = False
+        n = len(poly)
+        if n < 3:
+            return False
+        x1, y1 = poly[0]
+        for i in range(1, n + 1):
+            x2, y2 = poly[i % n]
+            if ((y1 > py) != (y2 > py)) and (px < (x2 - x1) * (py - y1) / ((y2 - y1) or 1e-9) + x1):
+                inside = not inside
+            x1, y1 = x2, y2
+        return inside
+
+    @staticmethod
+    def _segments_intersect(a, b, c, d):
+        """Пересечение отрезков AB и CD."""
+        def orient(p, q, r):
+            return (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])
+
+        def on_seg(p, q, r):
+            return (min(p[0], r[0]) <= q[0] <= max(p[0], r[0]) and
+                    min(p[1], r[1]) <= q[1] <= max(p[1], r[1]))
+
+        o1 = orient(a, b, c)
+        o2 = orient(a, b, d)
+        o3 = orient(c, d, a)
+        o4 = orient(c, d, b)
+
+        if (o1 == 0 and on_seg(a, c, b)) or (o2 == 0 and on_seg(a, d, b)) or (o3 == 0 and on_seg(c, a, d)) or (o4 == 0 and on_seg(c, b, d)):
+            return True
+        return (o1 > 0) != (o2 > 0) and (o3 > 0) != (o4 > 0)
+
+    @classmethod
+    def _poly_intersects_rect(cls, poly, rect: pygame.Rect):
+        """True если полигон пересекает прямоугольник rect."""
+        # Быстрый AABB pre-check
+        xs = [p[0] for p in poly]
+        ys = [p[1] for p in poly]
+        if not rect.colliderect(pygame.Rect(min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys))):
+            return False
+
+        # 1) любой угол rect внутри poly
+        corners = (rect.topleft, rect.topright, rect.bottomright, rect.bottomleft)
+        for (cx, cy) in corners:
+            if cls._point_in_poly(cx, cy, poly):
+                return True
+
+        # 2) любая вершина poly внутри rect
+        for (x, y) in poly:
+            if rect.collidepoint(x, y):
+                return True
+
+        # 3) пересечение ребер
+        rx1, ry1 = rect.topleft
+        rx2, ry2 = rect.topright
+        rx3, ry3 = rect.bottomright
+        rx4, ry4 = rect.bottomleft
+        rect_edges = (((rx1, ry1), (rx2, ry2)),
+                      ((rx2, ry2), (rx3, ry3)),
+                      ((rx3, ry3), (rx4, ry4)),
+                      ((rx4, ry4), (rx1, ry1)))
+        n = len(poly)
+        for i in range(n):
+            a = poly[i]
+            b = poly[(i + 1) % n]
+            for (c, d) in rect_edges:
+                if cls._segments_intersect(a, b, c, d):
+                    return True
+
+        return False
 
     # ------------------------------------------------------------------ #
     #  ПЕРЕХОДЫ МЕЖДУ ЛОКАЦИЯМИ                                           #
@@ -289,10 +401,14 @@ class TiledMapRenderer:
         screen.blit(self.map_surface, (-camera_x, -camera_y))
 
     def draw_collisions_debug(self, screen, camera_x=0, camera_y=0):
-        """Красный — коллизии, голубой — переходы, зелёный — NPC."""
+        """Красный — коллизии-rect, жёлтый — коллизии-poly, голубой — переходы, зелёный — NPC."""
         for rect in self.collision_rects:
             pygame.draw.rect(screen, (255, 0, 0),
                 (rect.x - camera_x, rect.y - camera_y, rect.width, rect.height), 2)
+        for poly in self.collision_polygons:
+            if len(poly) >= 2:
+                pts = [(x - camera_x, y - camera_y) for (x, y) in poly]
+                pygame.draw.polygon(screen, (255, 255, 0), pts, 2)
         for t in self.transitions:
             r = t["rect"]
             pygame.draw.rect(screen, (0, 255, 255),
@@ -303,7 +419,12 @@ class TiledMapRenderer:
                 (r.x - camera_x, r.y - camera_y, r.width, r.height), 2)
 
     def check_collision(self, rect):
-        return any(rect.colliderect(r) for r in self.collision_rects)
+        if any(rect.colliderect(r) for r in self.collision_rects):
+            return True
+        for poly in self.collision_polygons:
+            if self._poly_intersects_rect(poly, rect):
+                return True
+        return False
 
     def check_transition(self, rect):
         """Возвращает данные перехода если игрок вошёл в зону, иначе None."""
