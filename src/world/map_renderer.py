@@ -363,6 +363,7 @@ class TiledMapRenderer:
                 "tmx_path": os.path.join(root_dir, props["transition"]),
                 "spawn_x": float(props.get("spawnX", 0)),
                 "spawn_y": float(props.get("spawnY", 0)),
+                "requires_boss": bool(props.get("requiresBoss", False)),
             })
 
     # ------------------------------------------------------------------ #
@@ -380,7 +381,7 @@ class TiledMapRenderer:
             if not isinstance(layer, pytmx.TiledObjectGroup):
                 continue
             for obj in layer:
-                if not obj.name or not obj.name.startswith("npc"):
+                if not obj.name or not (obj.name.startswith("npc") or obj.name.startswith("boss")):
                     continue
                 self.npcs.append({
                     "rect": pygame.Rect(
@@ -441,9 +442,10 @@ class TiledMapRenderer:
         return None
 
     def _find_animated_tiles(self):
-        """Находит все анимированные тайлы на карте."""
+        """Находит все анимированные тайлы на карте (tile layers + object layers)."""
         self.animated_tiles = []
 
+        # 1) Анимированные тайлы на обычных тайловых слоях
         for layer in self.tmx_data.layers:
             if not isinstance(layer, pytmx.TiledTileLayer):
                 continue
@@ -453,8 +455,35 @@ class TiledMapRenderer:
                 tile_data = self.tmx_data.get_tile_properties_by_gid(gid)
                 if tile_data and "frames" in tile_data:
                     self.animated_tiles.append({
+                        "kind": "tile",
                         "x": x * self.tilewidth,
                         "y": y * self.tileheight,
+                        "draw_w": self.tilewidth,
+                        "draw_h": self.tileheight,
+                        "frames": tile_data["frames"],
+                        "current_frame": 0,
+                        "timer": 0.0,
+                    })
+
+        # 2) Анимированные tile-объекты на object слоях (например аквариум на location4)
+        for layer in self.tmx_data.layers:
+            if not isinstance(layer, pytmx.TiledObjectGroup):
+                continue
+
+            for obj in layer:
+                if not getattr(obj, "gid", None):
+                    continue
+
+                tile_data = self.tmx_data.get_tile_properties_by_gid(obj.gid)
+                if tile_data and "frames" in tile_data:
+                    draw_w = int((obj.width if obj.width else self.orig_tilewidth) * self.zoom)
+                    draw_h = int((obj.height if obj.height else self.orig_tileheight) * self.zoom)
+                    self.animated_tiles.append({
+                        "kind": "object",
+                        "x": int(obj.x * self.zoom),
+                        "y": int(obj.y * self.zoom),
+                        "draw_w": draw_w,
+                        "draw_h": draw_h,
                         "frames": tile_data["frames"],
                         "current_frame": 0,
                         "timer": 0.0,
@@ -484,12 +513,14 @@ class TiledMapRenderer:
                 frame_gid = current.gid
                 image = self.tmx_data.get_tile_image_by_gid(frame_gid)
                 if image:
-                    if self.zoom != 1.0:
-                        image = pygame.transform.scale(
-                            image, (self.tilewidth, self.tileheight)
-                        )
-                    self.map_surface.fill(
-                        (0, 0, 0, 0),
-                        (tile["x"], tile["y"], self.tilewidth, self.tileheight)
+                    image = pygame.transform.scale(
+                        image, (tile["draw_w"], tile["draw_h"])
                     )
+                    # Для тайлового слоя очищаем ячейку перед перерисовкой кадра.
+                    # Для object-слоя обычно достаточно просто перерисовать кадр.
+                    if tile.get("kind") == "tile":
+                        self.map_surface.fill(
+                            (0, 0, 0, 0),
+                            (tile["x"], tile["y"], tile["draw_w"], tile["draw_h"])
+                        )
                     self.map_surface.blit(image, (tile["x"], tile["y"]))

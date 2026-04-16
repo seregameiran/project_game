@@ -218,7 +218,9 @@ class PauseMenuState:
                 elif event.key == pygame.K_RETURN:
                     self.game.audio.play_sound(SoundType.UI_SELECT)
                     if self.selected == 0:
-                        # "Да" — выходим в главное меню
+                        # "Да" — выходим в главное меню и сбрасываем прогресс,
+                        # чтобы новая игра всегда стартовала с начала
+                        self.game.reset_game()
                         self.game.change_state(GameState.MAIN_MENU)
                     else:
                         # "Нет" — возвращаемся в игру

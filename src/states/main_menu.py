@@ -89,7 +89,7 @@ class MainMenuState:
         self._font_cache: dict = {}
 
         # Список пунктов меню
-        self.menu_items = ["Начать игру", "Выйти"]
+        self.menu_items = ["Начать новую игру", "Выйти"]
 
         # Индекс выбранного пункта (0 — первый пункт)
         self.selected = 0

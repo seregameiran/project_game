@@ -89,6 +89,10 @@ class ExploringState:
 
         # Поле перехода рядом с игроком
         self.nearby_transition = None
+        self.transition_locked = False
+        self.locked_hint_timer = 0.0
+        # Режим разработчика: разрешает переходы без убийства босса
+        self.dev_mode = False
 
     def load_location(self, location_id):
         """
@@ -225,12 +229,15 @@ class ExploringState:
                         pause_state.enter(GameState.EXPLORING)
                         self.game.change_state(GameState.PAUSE)
 
-                elif event.key == pygame.K_F1:
-                    # Переключаем отладочный режим коллизий
-                    self.show_debug = not self.show_debug
-                elif event.key == pygame.K_BACKQUOTE:
-                    # Запасной хоткей для macOS, где F1 часто перехватывается системой
-                    self.show_debug = not self.show_debug
+                elif event.key == pygame.K_F1 or event.key == pygame.K_BACKQUOTE:
+                    # На F1 и ` вместе переключаем Dev Mode и отладку коллизий
+                    self.dev_mode = not self.dev_mode
+                    self.show_debug = self.dev_mode
+                    self.game.audio.play_sound(SoundType.UI_HOVER)
+                    print(
+                        f"Dev Mode: {'ON' if self.dev_mode else 'OFF'} | "
+                        f"Debug: {'ON' if self.show_debug else 'OFF'}"
+                    )
 
                 elif event.key == pygame.K_e or event.unicode.lower() == "у":
                     # Проверяем взаимодействие с объектами на карте
@@ -310,10 +317,15 @@ class ExploringState:
             # Запускаем диалог
             dialogue_state = self.game.states.get(GameState.DIALOGUE)
             if dialogue_state:
+                is_boss_dialog = (
+                    npc.get("name", "").startswith("boss-")
+                    or "boss" in os.path.basename(npc.get("dialog_file", "")).lower()
+                )
                 dialogue_state.start(
                     npc["dialog_file"],
                     self.current_location,
-                    portrait_paths
+                    portrait_paths,
+                    is_boss_dialog=is_boss_dialog
                 )
                 self.game.change_state(GameState.DIALOGUE)
             return
@@ -321,6 +333,14 @@ class ExploringState:
         # Проверяем переход (дверь, портал и т.п.)
         transition = self.map_renderer.check_transition(self.player.rect)
         if transition:
+            requires_boss = bool(transition.get("requires_boss", False))
+            need_boss_gate = requires_boss and self.current_location >= 3
+            if need_boss_gate and not self.dev_mode and not self.game.is_boss_defeated(self.current_location):
+                self.transition_locked = True
+                self.locked_hint_timer = 1.2
+                self.game.audio.play_sound(SoundType.UI_BACK)
+                return
+
             # Передаём данные перехода в состояние TRANSITION_LOCATION
             transition_state = self.game.states.get(GameState.TRANSITION_LOCATION)
             if transition_state:
@@ -384,10 +404,19 @@ class ExploringState:
         self.nearby_transition = self.map_renderer.check_transition(
             self.player.rect
         ) if self.map_renderer else None
+        self.transition_locked = False
+        if self.nearby_transition and self.current_location >= 3:
+            if (self.nearby_transition.get("requires_boss", False)
+                    and not self.dev_mode
+                    and not self.game.is_boss_defeated(self.current_location)):
+                self.transition_locked = True
 
         # Обновляем анимацию тайлов карты
         if self.map_renderer:
             self.map_renderer.update(dt)
+
+        if self.locked_hint_timer > 0.0:
+            self.locked_hint_timer = max(0.0, self.locked_hint_timer - dt)
 
     def draw(self, screen):
         """
@@ -438,11 +467,22 @@ class ExploringState:
             screen.blit(hint, hint_rect)
 
         # Подсказка "Нажми E" при переходе на другую локацию
-        if self.nearby_transition:
+        if self.nearby_transition and not self.transition_locked:
             hint_font = pygame.font.Font(None, 28)
             hint = hint_font.render("Нажми E для перехода", True, (0, 255, 255))
             hint_rect = hint.get_rect(center=(screen.get_width() // 2, screen.get_height() - 40))
             screen.blit(hint, hint_rect)
+
+        if self.transition_locked or self.locked_hint_timer > 0.0:
+            hint_font = pygame.font.Font(None, 28)
+            hint = hint_font.render("Сначала победи босса!", True, (255, 120, 120))
+            hint_rect = hint.get_rect(center=(screen.get_width() // 2, screen.get_height() - 40))
+            screen.blit(hint, hint_rect)
+
+        if self.dev_mode:
+            dev_font = pygame.font.Font(None, 24)
+            dev_text = dev_font.render("DEV MODE + DEBUG: ON (F1 / `)", True, (255, 210, 80))
+            screen.blit(dev_text, (10, 34))
 
         # Отладочная строка в левом верхнем углу
         font = pygame.font.Font(None, 24)
@@ -451,7 +491,7 @@ class ExploringState:
             f"Позиция: ({self.player.rect.x}, {self.player.rect.y})  "
             f"Камера: ({cam_x}, {cam_y})  "
             f"Коллизий: {len(self.map_renderer.collision_rects)}  "
-            f"F1 / `: отладка",
+            f"F1 / `: dev + отладка",
             True,
             (255, 255, 255)
         )

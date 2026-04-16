@@ -40,6 +40,8 @@ class Game:
         self.running = True
         self.state = GameState.MAIN_MENU
         self.show_fps = False
+        # Локации, в которых босс уже побеждён
+        self.defeated_boss_locations = set()
 
         # Вычисляем масштаб
         self._update_scale()
@@ -177,6 +179,7 @@ class Game:
         Полный сброс состояния игры для начала новой игры.
         """
         print("Сброс игры...")
+        self.defeated_boss_locations.clear()
 
         # Сбрасываем состояние исследования (перезагружаем первую локацию)
         exploring_state = self.states.get(GameState.EXPLORING)
@@ -199,3 +202,11 @@ class Game:
             transition_state.appear_progress = 0.0
 
         print("Игра сброшена до начального состояния")
+
+    def mark_boss_defeated(self, location_id: int):
+        """Помечает босса локации как побеждённого."""
+        self.defeated_boss_locations.add(int(location_id))
+
+    def is_boss_defeated(self, location_id: int) -> bool:
+        """Проверяет, побеждён ли босс в указанной локации."""
+        return int(location_id) in self.defeated_boss_locations

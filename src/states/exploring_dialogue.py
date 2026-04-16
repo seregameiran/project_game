@@ -63,8 +63,10 @@ class ExploringDialogueState:
 
         # Кто сейчас говорит (для звука)
         self.current_speaker = ""
+        # Если это диалог босса, после полного завершения пометим победу
+        self.pending_boss_location = None
 
-    def start(self, dialog_file, location_id, portrait_paths):
+    def start(self, dialog_file, location_id, portrait_paths, is_boss_dialog=False):
         """
         Запускает диалог из JSON файла.
 
@@ -75,6 +77,7 @@ class ExploringDialogueState:
         """
         self.current_index = 0
         self.location_id = location_id
+        self.pending_boss_location = int(location_id) if is_boss_dialog else None
         self.lines = []
         self.portraits = {}
 
@@ -132,6 +135,9 @@ class ExploringDialogueState:
 
 
                         if self.current_index >= len(self.lines):
+                            if self.pending_boss_location is not None:
+                                self.game.mark_boss_defeated(self.pending_boss_location)
+                                self.pending_boss_location = None
                             self.game.change_state(GameState.EXPLORING)
 
     def update(self, dt):
