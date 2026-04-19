@@ -133,12 +133,28 @@ class ExploringDialogueState:
                         self.text_timer = 0.0
                         self.text_done = False
 
-
                         if self.current_index >= len(self.lines):
+                            # Диалог завершён
+                            self.game.audio.stop_sound(SoundType.DIALOG)
+                            self.game.audio.stop_sound(SoundType.DIALOG_BILLY)
+
                             if self.pending_boss_location is not None:
-                                self.game.mark_boss_defeated(self.pending_boss_location)
+                                # Это был диалог босса — запускаем бой
+                                boss_id = int(self.pending_boss_location) - 2
                                 self.pending_boss_location = None
-                            self.game.change_state(GameState.EXPLORING)
+
+                                battle = self.game.states.get(GameState.BATTLE)
+                                if battle:
+                                    exploring = self.game.states.get(GameState.EXPLORING)
+                                    saved_x = getattr(exploring, '_saved_battle_x', 0)
+                                    battle.enter(boss_id, saved_x)
+                                    self.game.change_state(GameState.BATTLE)
+                                else:
+                                    # Fallback: если BattleState не зарегистрирован
+                                    self.game.change_state(GameState.EXPLORING)
+                            else:
+                                # Обычный диалог с NPC — возврат в исследование
+                                self.game.change_state(GameState.EXPLORING)
 
     def update(self, dt):
         """Обновляет анимацию печати текста и воспроизводит звуки."""

@@ -13,6 +13,7 @@ from src.game_state import GameState
 from src.states.exploring_dialogue import ExploringDialogueState
 from src.states.transition_location import TransitionLocationState
 from src.core.audio_manager import AudioManager, MusicTrack, SoundType
+from src.states.battle import BattleState
 
 
 class Game:
@@ -57,6 +58,7 @@ class Game:
             GameState.DIALOGUE: ExploringDialogueState(self),
             GameState.PAUSE: PauseMenuState(self),
             GameState.TRANSITION_LOCATION: TransitionLocationState(self),
+            GameState.BATTLE: BattleState(self),
         }
 
         self.current_state = self.states[self.state]
