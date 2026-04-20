@@ -134,7 +134,7 @@
   <object id="87" gid="18" x="703.792" y="190.333" width="32" height="64"/>
   <object id="89" name="npc-1" x="682.016" y="137.669" width="76.7466" height="70.417">
    <properties>
-    <property name="dialogFile" value="assets/dialogs/npc-1.json"/>
+    <property name="dialogFile" value="assets/location1/npc-1.json"/>
    </properties>
   </object>
  </objectgroup>
@@ -142,8 +142,8 @@
   <object id="85" name="transition" x="275.402" y="0.551907" width="529.378" height="27.5316">
    <properties>
     <property name="spawnX" type="float" value="400"/>
-    <property name="spawnY" type="float" value="20"/>
-    <property name="transition" value="assets/maps/location2.tmx"/>
+    <property name="spawnY" type="float" value="560"/>
+    <property name="transition" value="assets/location2/location2.tmx"/>
    </properties>
   </object>
  </objectgroup>

@@ -25,9 +25,7 @@
   <image source="School-2.png" width="208" height="160"/>
   <tile id="0">
    <objectgroup draworder="index" id="2">
-    <object id="1" x="6.10412" y="7" width="195.792" height="93.5768"/>
-    <object id="2" x="6.8055" y="101.402" width="79.6243" height="31.9858"/>
-    <object id="3" x="120.457" y="101.402" width="81.3257" height="32.6664"/>
+    <object id="1" x="6.10412" y="7" width="195.349" height="127.652"/>
    </objectgroup>
   </tile>
  </tileset>
@@ -123,16 +121,16 @@
   <object id="69" gid="26" x="671.913" y="217.525" width="32" height="64"/>
   <object id="71" name="npc-2" x="647.056" y="166.993" width="84.878" height="78.5366">
    <properties>
-    <property name="dialogFile" value="assets/dialogs/npc-2.json"/>
+    <property name="dialogFile" value="assets/location2/npc-2.json"/>
    </properties>
   </object>
  </objectgroup>
  <objectgroup id="3" name="Transition">
-  <object id="67" name="transition" x="385.025" y="161.786" width="46.4037" height="52.6745">
+  <object id="67" name="transition" x="259.84" y="218.082" width="293.07" height="31.193">
    <properties>
     <property name="spawnX" type="float" value="20"/>
     <property name="spawnY" type="float" value="300"/>
-    <property name="target" value="assets/maps/location3.tmx"/>
+    <property name="transition" value="assets/location3/location3.tmx"/>
    </properties>
   </object>
  </objectgroup>

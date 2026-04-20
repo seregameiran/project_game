@@ -1,48 +1,24 @@
-# Python
-__pycache__/
-*.py[cod]
-*.so
-*.egg
-*.egg-info/
-dist/
-build/
-*.pyc
+"""
+Модуль core/state_machine.py
+Машина состояний (State Machine) для переключения игровых состояний.
+"""
 
-# Virtual environment (у кого-то может быть)
-.venv/
-venv/
-env/
-ENV/
 
-# IDE (разные у всех)
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-.DS_Store
+class StateMachine:
+    def __init__(self, initial_state=None):
+        self.state = initial_state
 
-# PyInstaller (когда будем собирать .exe)
-*.spec
-dist/
-build/
+    def change(self, new_state):
+        self.state = new_state
 
-# Game specific (локальные настройки)
-*.log
-*.cfg
-config.local.py
+    def handle_events(self, events):
+        if self.state:
+            self.state.handle_events(events)
 
-# Mac specific
-.DS_Store
-.AppleDouble
-.LSOverride
-._*
+    def update(self, dt):
+        if self.state:
+            self.state.update(dt)
 
-# Windows specific
-Thumbs.db
-desktop.ini
-$RECYCLE.BIN/
-
-# Linux specific
-.directory
-*.bak
+    def draw(self, surface):
+        if self.state:
+            self.state.draw(surface)

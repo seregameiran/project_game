@@ -1,0 +1,7 @@
+[
+    {"speaker": "npc-3", "text": "Так-так... Кто это к нам пожаловал?", "color": "red"},
+    {"speaker": "billy", "text": "Я пришёл забрать то, что принадлежит мне по праву!", "color": "white"},
+    {"speaker": "npc-3", "text": "Ха-ха! Докажи, что ты достоин!", "color": "red"},
+    {"speaker": "billy", "text": "Будь по-твоему!", "color": "white"},
+    {"speaker": "npc-3", "text": "Тогда начнём битву!", "color": "yellow"}
+]
