@@ -11,7 +11,6 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from src.game_state import GameState
-
 from src.core.audio_manager import SoundType
 
 
@@ -50,7 +49,7 @@ class ExploringDialogueState:
         # Шрифты
         font_path = os.path.join(self.root_dir, "assets", "menu", "Compilance-Sans.ttf")
         self.font = pygame.font.Font(font_path, 26)       # основной текст диалога
-        self.hint_font = pygame.font.Font(font_path, 24)  # подсказка (увеличенный)
+        self.hint_font = pygame.font.Font(font_path, 24)  # подсказка
 
         # Текущая локация (чтобы вернуться после диалога)
         self.location_id = 1
@@ -63,7 +62,7 @@ class ExploringDialogueState:
 
         # Кто сейчас говорит (для звука)
         self.current_speaker = ""
-        # Если это диалог босса, после полного завершения пометим победу
+        # Если это диалог босса, после полного завершения пометим победу и начнём бой
         self.pending_boss_location = None
 
     def start(self, dialog_file, location_id, portrait_paths, is_boss_dialog=False):
@@ -74,6 +73,7 @@ class ExploringDialogueState:
             dialog_file: путь к JSON файлу с репликами
             location_id: номер текущей локации
             portrait_paths: словарь {speaker: путь к PNG портрета}
+            is_boss_dialog: True если это диалог с боссом (после него начнётся бой)
         """
         self.current_index = 0
         self.location_id = location_id
@@ -147,7 +147,7 @@ class ExploringDialogueState:
                                 if battle:
                                     exploring = self.game.states.get(GameState.EXPLORING)
                                     saved_x = getattr(exploring, '_saved_battle_x', 0)
-                                    battle.enter(boss_id, saved_x)
+                                    battle.start_battle(boss_id, saved_x)
                                     self.game.change_state(GameState.BATTLE)
                                 else:
                                     # Fallback: если BattleState не зарегистрирован
@@ -177,7 +177,7 @@ class ExploringDialogueState:
                 # Воспроизводим звук для NPC
                 if speaker != "billy" and chars_to_show < len(current_text):
                     self.game.audio.play_sound(SoundType.DIALOG)
-                #Воспроизводим звук для Billy
+                # Воспроизводим звук для Billy
                 if speaker == "billy" and chars_to_show < len(current_text):
                     self.game.audio.play_sound(SoundType.DIALOG_BILLY)
 
@@ -185,7 +185,7 @@ class ExploringDialogueState:
 
             if self.displayed_chars >= len(current_text):
                 self.text_done = True
-                # Останавливаем звук диалога после завершения реплики NPC
+                # Останавливаем звук диалога после завершения реплики
                 if speaker != "billy":
                     self.game.audio.stop_sound(SoundType.DIALOG)
                 if speaker == "billy":
@@ -193,7 +193,6 @@ class ExploringDialogueState:
         else:
             self.game.audio.stop_sound(SoundType.DIALOG)
             self.game.audio.stop_sound(SoundType.DIALOG_BILLY)
-
 
     def draw(self, screen):
         """
@@ -230,9 +229,9 @@ class ExploringDialogueState:
             portrait_y = h - 160 + (140 - 96) // 2
             screen.blit(portrait, (portrait_x, portrait_y))
 
-        # --- ПОДСКАЗКА "Нажмите ESC, чтобы выйти" (левый верхний угол окна) ---
+        # --- ПОДСКАЗКА "Нажмите ESC, чтобы выйти" ---
         hint_text = "Нажмите ESC, чтобы выйти"
-        hint_surf = self.hint_font.render(hint_text, True, (255, 255, 0))  # жёлтый цвет
+        hint_surf = self.hint_font.render(hint_text, True, (255, 255, 0))
         hint_rect = hint_surf.get_rect(topright=(w - 10, 10))
         screen.blit(hint_surf, hint_rect)
 

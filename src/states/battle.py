@@ -1,901 +1,438 @@
 """
-Модуль states/battle.py
-Состояние боя с боссом.
+Состояние BATTLE — рендеринг и обработка ввода.
+Вся чистая логика живёт в BattleSystem / Boss*.
+Этот файл только рисует и передаёт события.
+
+Виртуальный экран: 800 × 608 пикселей.
+Ассеты: assets/location3/ (для первого босса).
 """
 
-import pygame
-import sys
 import os
-import random
-import math
+import pygame
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+# Импорт логики боя
+from battle.battle_system import BattleSystem, BattlePhase, PlayerState
 
-from src.game_state import GameState
-from src.core.audio_manager import SoundType, MusicTrack
-
-
-# ---------------------------------------------------------------------------
-# Константы параметров боссов
-# ---------------------------------------------------------------------------
-
-PLAYER_HP_START = {1: 80, 2: 100, 3: 120}
-BOSS_HP_START = {1: 60, 2: 90, 3: 120}
-BOSS_Y_START = {1: 5, 2: 8, 3: 12}
-BOSS_ADD_N_MIN = {1: 2, 2: 3, 3: 4}
-BOSS_ADD_N_MAX = {1: 6, 2: 7, 3: 8}
-
-UNLOCK_X_SUB = 7
-UNLOCK_X_MUL = 10
-UNLOCK_X_DIV = 12
-
-BOSS_ADD_INTERVAL = 2
-BOSS_SUB_INTERVAL = 3
-BOSS_MUL_INTERVAL = 4
-BOSS_DIV_INTERVAL = 4
+# Импорт первого босса
+import importlib
+_boss1_module = importlib.import_module("bosses.boss1")
+Boss1 = _boss1_module.Boss1
 
 
-# ---------------------------------------------------------------------------
-# Цвета
-# ---------------------------------------------------------------------------
-COLOR_WHITE = (255, 255, 255)
-COLOR_BLACK = (0, 0, 0)
-COLOR_RED = (220, 50, 50)
-COLOR_GREEN = (50, 200, 80)
-COLOR_YELLOW = (240, 200, 40)
-COLOR_GRAY = (120, 120, 120)
-COLOR_DARK = (20, 20, 30)
-COLOR_HP_RED = (200, 40, 40)
-COLOR_HP_BG = (60, 20, 20)
-COLOR_HP_GREEN = (40, 180, 60)
-COLOR_HP_BOSS_BG = (20, 40, 60)
-COLOR_HP_BOSS = (40, 140, 220)
+# -----------------------------------------------------------------------
+# Вспомогательные функции загрузки ресурсов
+# -----------------------------------------------------------------------
 
-ATTACK_NAMES = {
-    "add": "Сложение",
-    "sub": "Вычитание",
-    "mul": "Умножение",
-    "div": "Деление",
-}
+def _asset(location_folder: str, filename: str) -> str:
+    """Формирует путь к файлу в папке assets/<location_folder>/."""
+    base = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    return os.path.join(base, "assets", location_folder, filename)
 
-ATTACK_KEYS = {
-    pygame.K_1: "add",
-    pygame.K_2: "sub",
-    pygame.K_3: "mul",
-    pygame.K_4: "div",
-}
 
+def _load_image(path: str, scale=None) -> pygame.Surface:
+    try:
+        img = pygame.image.load(path).convert_alpha()
+        if scale:
+            img = pygame.transform.scale(img, scale)
+        return img
+    except Exception:
+        surf = pygame.Surface(scale or (64, 64), pygame.SRCALPHA)
+        surf.fill((200, 50, 200, 180))
+        return surf
+
+
+def _load_font(path: str, size: int) -> pygame.font.Font:
+    try:
+        return pygame.font.Font(path, size)
+    except Exception:
+        return pygame.font.Font(None, size)
+
+
+# -----------------------------------------------------------------------
+# Константы UI
+# -----------------------------------------------------------------------
+
+VSCREEN_W = 800
+VSCREEN_H = 608
+
+C_WHITE    = (255, 255, 255)
+C_BLACK    = (0,   0,   0)
+C_RED      = (220, 50,  50)
+C_GREEN    = (80,  200, 80)
+C_YELLOW   = (255, 230, 50)
+C_GRAY     = (150, 150, 150)
+C_DARK     = (20,  20,  20)
+C_ORANGE   = (255, 160, 0)
+C_HP_GREEN = (60,  190, 60)
+C_HP_RED   = (190, 40,  40)
+C_HP_BG    = (60,  20,  20)
+
+HP_BAR_W   = 200
+HP_BAR_H   = 18
+PLAYER_HP_X = 20
+PLAYER_HP_Y = 20
+BOSS_HP_X   = VSCREEN_W - HP_BAR_W - 20
+BOSS_HP_Y   = 20
+
+ATTACK_PANEL_Y = VSCREEN_H - 100
+PROBLEM_Y = VSCREEN_H // 2 - 60
+
+
+# -----------------------------------------------------------------------
+# Главный класс состояния
+# -----------------------------------------------------------------------
 
 class BattleState:
     """
-    Состояние пошагового боя с боссом.
+    Игровое состояние «Бой».
+    Интерфейс совместим с game.py.
     """
 
-    PHASE_PLAYER_CHOOSE = "player_choose"
-    PHASE_PLAYER_ANSWER = "player_answer"
-    PHASE_BOSS_ATTACK = "boss_attack"
-    PHASE_BOSS_ANSWER = "boss_answer"
-    PHASE_RESULT = "result"
-    PHASE_UNLOCK_ANIM = "unlock_anim"
-    PHASE_ESCAPE = "escape"  # Новая фаза для выхода
+    ASSET_FOLDER = "location3"
 
     def __init__(self, game):
+        """Инициализация состояния боя."""
         self.game = game
+        self._loaded = False
+        self._battle: BattleSystem | None = None
 
-        self.root_dir = os.path.dirname(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        )
+        # Спрайты / изображения
+        self._bg = None
+        self._fight_win = None
+        self._billy_head = None
+        self._boss_img = None
+        self._pointer = None
 
-        # --- Параметры боя ---
-        self.boss_id = 1
-        self.hp_player = 0
-        self.hp_boss = 0
-        self.x = 0
-        self.y = 0
-        self.turn_counter = 0
+        # Шрифты
+        self._font_big = None
+        self._font_med = None
+        self._font_small = None
 
-        # --- Флаги особых состояний ---
-        self.mul_next_double = False
-        self.div_next_half = False
-        self._boss_next_mul2 = False
+        # Анимация текста результата
+        self._result_alpha = 255
 
-        # --- Разблокировка атак ---
-        self.add_unlocked = False
-        self.sub_unlocked = False
-        self.mul_unlocked = False
-        self.div_unlocked = False
+        # Мигание курсора ввода
+        self._cursor_timer = 0.0
+        self._cursor_vis = True
 
-        self._pending_unlock_attack = None
-        self._unlock_stage = 0
-
-        # --- Ввод ответа ---
-        self.answer_buffer = ""
-        self.correct_answer = 0
-        self.problem_text = ""
-
-        # --- Текущая атака ---
-        self.pending_attack = None
-        self._boss_attack = None
-
-        # --- Сообщения ---
-        self.error_msg = ""
-        self.error_timer = 0.0
-        self.result_msg = ""
-        self.result_timer = 0.0
-        self._unlock_msg = ""
-        self._unlock_timer = 0.0
-
-        # --- Фаза хода ---
-        self.phase = self.PHASE_PLAYER_CHOOSE
-
-        # --- Фаза выхода из боя ---
-        self.escape_selected = 1  # 0 = Да, 1 = Нет
-
-        # --- Спрайты и шрифты ---
-        self._fonts_loaded = False
-        self.font_big = None
-        self.font_mid = None
-        self.font_small = None
-        self.font_hint = None
-        self.boss_sprite = None
-        self.player_sprite = None
-
-        # --- Фон для боя ---
-        self.battle_bg = None
-        self._load_battle_bg()
-
-    def _load_battle_bg(self):
-        """Загружает фон для битвы."""
-        bg_path = os.path.join(self.root_dir, "assets", "location3", "battle_bg.png")
-        try:
-            if os.path.exists(bg_path):
-                img = pygame.image.load(bg_path).convert()
-                self.battle_bg = pygame.transform.scale(img, (800, 608))
-                print(f"Загружен фон битвы: {bg_path}")
-            else:
-                print(f"Фон битвы не найден: {bg_path}, использую заливку")
-                self.battle_bg = None
-        except Exception as e:
-            print(f"Ошибка загрузки фона битвы: {e}")
-            self.battle_bg = None
-
-    # -----------------------------------------------------------------------
-    # Вход в состояние боя
-    # -----------------------------------------------------------------------
-
-    def enter(self, boss_id: int, saved_x: int = 0):
-        """
-        Инициализирует бой с указанным боссом.
-        """
-        self.boss_id = int(boss_id)
-        self.hp_player = PLAYER_HP_START.get(self.boss_id, 80)
-        self.hp_boss = BOSS_HP_START.get(self.boss_id, 60)
-
-        if self.boss_id == 1:
-            self.x = 0
-        else:
-            self.x = max(1, saved_x // 2) if saved_x > 0 else 0
-
-        self.y = BOSS_Y_START.get(self.boss_id, 5)
-        self.turn_counter = 0
-
-        self.mul_next_double = False
-        self.div_next_half = False
-        self._boss_next_mul2 = False
-
-        # Разблокировка атак
-        self.add_unlocked = False
-        self.sub_unlocked = (self.x >= UNLOCK_X_SUB)
-        self.mul_unlocked = (self.boss_id >= 2 and self.x >= UNLOCK_X_MUL)
-        self.div_unlocked = (self.boss_id >= 3 and self.x >= UNLOCK_X_DIV)
-
-        self._pending_unlock_attack = None
-        self._unlock_stage = 0
-
-        self.answer_buffer = ""
-        self.correct_answer = 0
-        self.problem_text = ""
-        self.pending_attack = None
-        self._boss_attack = None
-
-        self.error_msg = ""
-        self.error_timer = 0.0
-        self.result_msg = ""
-        self.result_timer = 0.0
-        self._unlock_msg = ""
-        self._unlock_timer = 0.0
-
-        # Проверяем нужно ли открыть сложение
-        if not self.add_unlocked:
-            self._start_unlock_challenge("add")
-            self.phase = self.PHASE_PLAYER_ANSWER
-        else:
-            self.phase = self.PHASE_PLAYER_CHOOSE
-
-        self._load_assets()
-
-        print(f"[BATTLE] Бой начат. Босс #{self.boss_id}, "
-              f"HP_player={self.hp_player}, HP_boss={self.hp_boss}, "
-              f"X={self.x}, Y={self.y}")
+    # ------------------------------------------------------------------
+    # Загрузка
+    # ------------------------------------------------------------------
 
     def _load_assets(self):
-        """Загружает шрифты и спрайты для боя."""
-        if self._fonts_loaded:
+        if self._loaded:
             return
 
-        font_path = os.path.join(self.root_dir, "assets", "menu", "Compilance-Sans.ttf")
+        folder = self.ASSET_FOLDER
+        font_path = _asset(folder, "Compilance-Sans.ttf")
 
-        def load_font(size):
-            try:
-                return pygame.font.Font(font_path, size)
-            except Exception:
-                return pygame.font.SysFont("Arial", size)
+        self._bg = _load_image(_asset(folder, "battle_bg.png"),
+                               (VSCREEN_W, VSCREEN_H))
+        self._fight_win = _load_image(_asset(folder, "Fight-Window.png"))
+        self._billy_head = _load_image(_asset(folder, "Billy-Head.png"), (80, 80))
+        self._boss_img = _load_image(_asset(folder, "Boss-1.png"), (160, 200))
+        self._pointer = _load_image(_asset(folder, "Pointer.png"), (20, 20))
 
-        self.font_big = load_font(36)
-        self.font_mid = load_font(26)
-        self.font_small = load_font(20)
-        self.font_hint = load_font(18)
+        self._font_big = _load_font(font_path, 28)
+        self._font_med = _load_font(font_path, 20)
+        self._font_small = _load_font(font_path, 15)
 
-        # Спрайт босса
-        boss_names = {1: "NPC-3-Head", 2: "boss2", 3: "boss3"}
-        boss_name = boss_names.get(self.boss_id, "boss1")
-        boss_path = os.path.join(
-            self.root_dir, "assets", f"location{self.boss_id + 2}", f"{boss_name}.png"
-        )
-        try:
-            if os.path.exists(boss_path):
-                img = pygame.image.load(boss_path).convert_alpha()
-                self.boss_sprite = pygame.transform.scale(img, (80, 80))
-            else:
-                self.boss_sprite = None
-        except Exception as e:
-            print(f"Ошибка загрузки спрайта босса: {e}")
-            self.boss_sprite = None
+        self._loaded = True
 
-        # Спрайт игрока
-        player_path = os.path.join(self.root_dir, "assets", "location3", "Billy-Head.png")
-        try:
-            if os.path.exists(player_path):
-                img = pygame.image.load(player_path).convert_alpha()
-                frame_w = img.get_width() // 4 if img.get_width() > img.get_height() else img.get_width()
-                frame = img.subsurface(pygame.Rect(0, 0, frame_w, img.get_height()))
-                self.player_sprite = pygame.transform.scale(frame, (80, 80))
-            else:
-                self.player_sprite = None
-        except Exception as e:
-            print(f"Ошибка загрузки спрайта игрока: {e}")
-            self.player_sprite = None
+    # ------------------------------------------------------------------
+    # Жизненный цикл состояния
+    # ------------------------------------------------------------------
 
-        self._fonts_loaded = True
+    def start_battle(self, boss_id: int = 1, saved_x: int = 0):
+        """Запускает бой с указанным боссом."""
+        self._load_assets()
 
-    # -----------------------------------------------------------------------
-    # Генерация математических примеров
-    # -----------------------------------------------------------------------
-
-    def _gen_unlock_problem(self, attack_type: str):
-        """Генерирует пример для разблокировки атаки."""
-        problems = {
-            "add": lambda: self._make_problem("+"),
-            "sub": lambda: self._make_problem("-"),
-            "mul": lambda: self._make_problem("*"),
-            "div": lambda: self._make_problem("/"),
-        }
-        return problems.get(attack_type, lambda: self._make_problem("+"))()
-
-    def _make_problem(self, op: str):
-        """Создаёт простой пример с операцией op."""
-        if op == "+":
-            a = random.randint(1, 9)
-            b = random.randint(1, 9)
-            return f"{a} + {b} = ?", a + b
-        elif op == "-":
-            b = random.randint(1, 5)
-            a = random.randint(b, b + 6)
-            return f"{a} - {b} = ?", a - b
-        elif op == "*":
-            a = random.randint(2, 5)
-            b = random.randint(2, 4)
-            return f"{a} × {b} = ?", a * b
-        else:  # "/"
-            b = random.randint(2, 4)
-            a = b * random.randint(2, 5)
-            return f"{a} ÷ {b} = ?", a // b
-
-    def _gen_boss_problem(self, attack_type: str):
-        """Генерирует пример для атаки босса."""
-        return self._make_problem(
-            {"add": "+", "sub": "-", "mul": "*", "div": "/"}.get(attack_type, "+")
-        )
-
-    # -----------------------------------------------------------------------
-    # Старт этапов разблокировки
-    # -----------------------------------------------------------------------
-
-    def _start_unlock_challenge(self, attack_type: str):
-        """Начинает процедуру разблокировки атаки."""
-        self._pending_unlock_attack = attack_type
-        self._unlock_stage = 1
-        text, ans = self._gen_unlock_problem(attack_type)
-        self.problem_text = f"[Разблокировка: {ATTACK_NAMES[attack_type]}]\n{text}"
-        self.correct_answer = ans
-        self.answer_buffer = ""
-        self.error_msg = ""
-
-    # -----------------------------------------------------------------------
-    # Атаки игрока
-    # -----------------------------------------------------------------------
-
-    def _apply_player_attack(self, attack_type: str):
-        """Применяет выбранную атаку игрока."""
-        multiplier = 2 if self.mul_next_double else 1
-        self.mul_next_double = False
-
-        if attack_type == "add":
-            gain = 1 * multiplier
-            self.x += gain
-            self.hp_boss -= self.x
-            self.game.audio.play_sound(SoundType.BOSS_HIT)
-            self._show_unlock_anim(f"+{gain} к уровню! HP босса -{self.x}")
-
-        elif attack_type == "sub":
-            dmg = 2 * multiplier
-            self.y = max(0, self.y - dmg)
-            self.hp_boss -= dmg
-            self.game.audio.play_sound(SoundType.BOSS_HIT)
-            self._show_unlock_anim(f"Y босса -{dmg}, HP босса -{dmg}")
-
-        elif attack_type == "mul":
-            self.mul_next_double = True
-            self._show_unlock_anim("Следующая атака удвоена!")
-
-        elif attack_type == "div":
-            self.div_next_half = True
-            self._show_unlock_anim("Следующий удар босса ослаблен!")
-
-    # -----------------------------------------------------------------------
-    # Атаки босса
-    # -----------------------------------------------------------------------
-
-    def _choose_boss_attack(self) -> str:
-        """Босс выбирает атаку."""
-        tc = self.turn_counter
-
-        if self.boss_id >= 3 and tc % BOSS_DIV_INTERVAL == 0 and tc > 0:
-            return "div"
-
-        if self.boss_id >= 2 and tc % BOSS_MUL_INTERVAL == 0 and tc > 0:
-            return "mul"
-
-        if tc % BOSS_SUB_INTERVAL == 0 and tc > 0:
-            return "sub"
-
-        if tc % BOSS_ADD_INTERVAL == 0 and tc > 0:
-            return "add"
-
-        return "basic"
-
-    def _apply_boss_attack_result(self, attack_type: str, correct: bool):
-        """Применяет результат атаки босса."""
-        n_min = BOSS_ADD_N_MIN.get(self.boss_id, 2)
-        n_max = BOSS_ADD_N_MAX.get(self.boss_id, 6)
-        n = random.randint(n_min, n_max)
-
-        divisor = 2 if self.div_next_half else 1
-        self.div_next_half = False
-
-        if attack_type == "basic":
-            dmg = max(1, self.y // divisor)
-            self.hp_player -= dmg
-            self.game.audio.play_sound(SoundType.DAMAGE)
-
-        elif attack_type == "add":
-            if correct:
-                self.y += n
-                self._show_unlock_anim(f"Босс: Y +{n}")
-            else:
-                self.y += n * 2
-                self.game.audio.play_sound(SoundType.DAMAGE)
-                self._show_unlock_anim(f"Ошибка! Босс: Y +{n * 2}")
-
-        elif attack_type == "sub":
-            if correct:
-                self.x = max(0, self.x - 2)
-                self._show_unlock_anim("Босс: X -2")
-            else:
-                self.x = max(0, self.x // 2)
-                self.game.audio.play_sound(SoundType.DAMAGE)
-                self._show_unlock_anim("Ошибка! Босс: X ÷ 2")
-
-        elif attack_type == "mul":
-            if correct:
-                self._boss_next_mul2 = True
-                self._show_unlock_anim("Босс: следующий удар x2!")
-            else:
-                self.x = max(0, int(self.x / 1.5))
-                self.y = int(self.y * 2)
-                self.game.audio.play_sound(SoundType.DAMAGE)
-                self._show_unlock_anim("Ошибка! X ÷1.5, Y ×2")
-
-        elif attack_type == "div":
-            if correct:
-                self.x = max(0, self.x // 2)
-                self._show_unlock_anim("Босс: X ÷ 2")
-            else:
-                self.x = max(0, self.x // 2)
-                self.y = int(self.y * 1.5)
-                self.game.audio.play_sound(SoundType.DAMAGE)
-                self._show_unlock_anim("Ошибка! X ÷2, Y ×1.5")
-
-    # -----------------------------------------------------------------------
-    # Разблокировка атак
-    # -----------------------------------------------------------------------
-
-    def _check_unlock_conditions(self):
-        """Проверяет условия разблокировки."""
-        if not self.sub_unlocked and self.x >= UNLOCK_X_SUB:
-            self._start_unlock_challenge("sub")
-            self.phase = self.PHASE_PLAYER_ANSWER
-
-        elif (not self.mul_unlocked and self.boss_id >= 2
-              and self.x >= UNLOCK_X_MUL):
-            self._start_unlock_challenge("mul")
-            self.phase = self.PHASE_PLAYER_ANSWER
-
-        elif (not self.div_unlocked and self.boss_id >= 3
-              and self.x >= UNLOCK_X_DIV):
-            self._start_unlock_challenge("div")
-            self.phase = self.PHASE_PLAYER_ANSWER
-
-    def _resolve_unlock_answer(self, correct: bool):
-        """Обрабатывает ответ игрока на пример разблокировки."""
-        attack = self._pending_unlock_attack
-
-        if correct:
-            setattr(self, f"{attack}_unlocked", True)
-            self._unlock_msg = f"Атака «{ATTACK_NAMES[attack]}» разблокирована!"
-            self._unlock_timer = 2.5
-            self._pending_unlock_attack = None
-            self._unlock_stage = 0
-            self.problem_text = ""
-            self.answer_buffer = ""
-            self.error_msg = ""
-            self.game.audio.play_sound(SoundType.VICTORY)
-
-            if self.hp_boss > 0 and self.hp_player > 0:
-                self.phase = self.PHASE_PLAYER_CHOOSE
+        # Загружаем босса по ID
+        if boss_id == 1:
+            from bosses.boss1 import Boss1
+            boss = Boss1()
+        elif boss_id == 2:
+            from bosses.boss2 import Boss2
+            boss = Boss2()
+        elif boss_id == 3:
+            from bosses.boss3 import Boss3
+            boss = Boss3()
         else:
-            if self._unlock_stage == 1:
-                self._unlock_stage = 2
-                self.error_msg = "Неверно! Попробуй ещё раз."
-                self.error_timer = 2.0
-                text, ans = self._gen_unlock_problem(attack)
-                self.problem_text = f"[Разблокировка: {ATTACK_NAMES[attack]}]\n{text}"
-                self.correct_answer = ans
-                self.answer_buffer = ""
-            else:
-                self.error_msg = "Не удалось разблокировать атаку. Возврат..."
-                self.error_timer = 2.0
-                self._pending_unlock_attack = None
-                self._unlock_stage = 0
-                self.result_msg = ""
-                self.result_timer = 2.5
-                self.phase = self.PHASE_RESULT
+            from bosses.boss1 import Boss1
+            boss = Boss1()
 
-    # -----------------------------------------------------------------------
-    # Победа / Поражение
-    # -----------------------------------------------------------------------
+        player = PlayerState(hp=50, x=saved_x)
+        self._battle = BattleSystem(boss, player)
+        self._battle.start()
 
-    def _check_battle_end(self):
-        """Проверяет условия окончания боя."""
-        if self.hp_boss <= 0:
-            if self.boss_id == 3:
-                self.result_msg = "Ты победил! Конец игры!"
-                self.result_timer = 3.0
-                self.phase = self.PHASE_RESULT
-                self.game.audio.play_sound(SoundType.VICTORY)
-                self.game.audio.play_music(MusicTrack.VICTORY)
-                self._victory_goto_credits = True
-            else:
-                self.result_msg = f"Босс #{self.boss_id} повержен!"
-                self.result_timer = 3.0
-                self.phase = self.PHASE_RESULT
-                self.game.audio.play_sound(SoundType.VICTORY)
-                self.game.audio.play_music(MusicTrack.VICTORY)
-                self._victory_goto_credits = False
-            return True
-
-        if self.hp_player <= 0:
-            self.result_msg = "Wasted. Попробуй снова."
-            self.result_timer = 3.0
-            self.phase = self.PHASE_RESULT
-            self.game.audio.play_sound(SoundType.DEFEAT)
-            self._victory_goto_credits = False
-            return True
-
-        return False
-
-    def _exit_battle(self, victory: bool):
-        """Выходит из боя."""
-        exploring = self.game.states.get(GameState.EXPLORING)
-
-        if victory and self.boss_id == 3:
-            credits_state = self.game.states.get(GameState.CREDITS)
-            if credits_state:
-                self.game.change_state(GameState.CREDITS)
-            return
-
-        if victory:
-            location_id = self.boss_id + 2
-            self.game.mark_boss_defeated(location_id)
-
-            if exploring:
-                exploring._saved_battle_x = max(1, self.x // 2)
-
-            self.game.audio.play_music(MusicTrack.EXPLORING)
-            self.game.change_state(GameState.EXPLORING)
-        else:
-            self.game.audio.play_music(MusicTrack.EXPLORING)
-            self.game.change_state(GameState.EXPLORING)
-
-    # -----------------------------------------------------------------------
-    # Вспомогательные
-    # -----------------------------------------------------------------------
-
-    def _show_unlock_anim(self, msg: str):
-        self._unlock_msg = msg
-        self._unlock_timer = 2.0
-
-    def _validate_answer(self) -> bool:
-        """Проверяет введённый ответ."""
-        try:
-            return int(self.answer_buffer) == self.correct_answer
-        except ValueError:
-            return False
-
-    def _is_attack_available(self, attack: str) -> bool:
-        """Возвращает True, если атака доступна игроку."""
-        return getattr(self, f"{attack}_unlocked", False)
-
-    def _submit_answer(self):
-        """Обрабатывает подтверждение ответа игрока."""
-        correct = self._validate_answer()
-
-        if self.phase == self.PHASE_PLAYER_ANSWER:
-            self._resolve_unlock_answer(correct)
-
-        elif self.phase == self.PHASE_BOSS_ANSWER:
-            self._apply_boss_attack_result(self._boss_attack, correct)
-            if not correct:
-                self.error_msg = "Ошибка! Попробуй ещё раз."
-                self.error_timer = 1.5
-            self.answer_buffer = ""
-            self.problem_text = ""
-            self._boss_attack = None
-
-            if not self._check_battle_end():
-                self.phase = self.PHASE_PLAYER_CHOOSE
-
-    def _do_boss_turn(self):
-        """Выполняет ход босса."""
-        boss_attack = self._choose_boss_attack()
-
-        if boss_attack == "basic":
-            divisor = 2 if self.div_next_half else 1
-            self.div_next_half = False
-            multiplier = 2 if getattr(self, "_boss_next_mul2", False) else 1
-            self._boss_next_mul2 = False
-            dmg = max(1, (self.y * multiplier) // divisor)
-            self.hp_player -= dmg
-            self.game.audio.play_sound(SoundType.DAMAGE)
-            self._show_unlock_anim(f"Босс: базовый удар -{dmg} HP")
-            self._check_battle_end()
-        else:
-            self._boss_attack = boss_attack
-            text, ans = self._gen_boss_problem(boss_attack)
-            self.problem_text = f"[Атака босса: {ATTACK_NAMES[boss_attack]}]\n{text}"
-            self.correct_answer = ans
-            self.answer_buffer = ""
-            self.error_msg = ""
-            self.phase = self.PHASE_BOSS_ANSWER
-
-    # -----------------------------------------------------------------------
-    # Обработка выхода из боя
-    # -----------------------------------------------------------------------
-
-    def _escape_battle(self):
-        """Выход из боя в главное меню."""
-        self.game.audio.play_sound(SoundType.UI_SELECT)
-        self.game.change_state(GameState.EXPLORING)
-
-    # -----------------------------------------------------------------------
-    # Обработка событий
-    # -----------------------------------------------------------------------
+        if self.game.audio:
+            self.game.audio.stop_music()
 
     def handle_events(self, events):
-        """Обрабатывает события клавиатуры."""
+        """Обработка событий (вызывается из game.py)."""
+        if not self._battle:
+            return
+
+        b = self._battle
+        phase = b.phase
+
         for event in events:
             if event.type != pygame.KEYDOWN:
                 continue
+            self._handle_key(event.key, event.unicode)
 
-            # Выход по ESC
-            if event.key == pygame.K_ESCAPE:
-                self._escape_battle()
-                return
+    def _handle_key(self, key: int, unicode_char: str):
+        b = self._battle
+        phase = b.phase
 
-            # --- Фаза выбора атаки ---
-            if self.phase == self.PHASE_PLAYER_CHOOSE:
-                attack = ATTACK_KEYS.get(event.key)
-                if attack and self._is_attack_available(attack):
-                    self.pending_attack = attack
-
-                    if attack in ("add", "sub"):
-                        self._apply_player_attack(attack)
-                        self.turn_counter += 1
-                        if not self._check_battle_end():
-                            self._check_unlock_conditions()
-                            if self.phase == self.PHASE_PLAYER_CHOOSE:
-                                self._do_boss_turn()
-                    elif attack == "mul":
-                        self._apply_player_attack(attack)
-                        self.turn_counter += 1
-                        if not self._check_battle_end():
-                            self._check_unlock_conditions()
-                            if self.phase == self.PHASE_PLAYER_CHOOSE:
-                                self._do_boss_turn()
-                    elif attack == "div":
-                        self._apply_player_attack(attack)
-                        self.turn_counter += 1
-                        if not self._check_battle_end():
-                            self._check_unlock_conditions()
-                            if self.phase == self.PHASE_PLAYER_CHOOSE:
-                                self._do_boss_turn()
-
-            # --- Фаза ввода ответа ---
-            elif self.phase in (self.PHASE_PLAYER_ANSWER, self.PHASE_BOSS_ANSWER):
-                if event.key == pygame.K_BACKSPACE:
-                    self.answer_buffer = self.answer_buffer[:-1]
-
-                elif event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER:
-                    if self.answer_buffer:
-                        self._submit_answer()
-
-                elif event.unicode.isdigit():
-                    if len(self.answer_buffer) < 3:
-                        self.answer_buffer += event.unicode
-
-    # -----------------------------------------------------------------------
-    # Обновление
-    # -----------------------------------------------------------------------
-
-    def update(self, dt: float):
-        """Обновляет таймеры сообщений."""
-        if self.error_timer > 0:
-            self.error_timer -= dt
-            if self.error_timer <= 0:
-                self.error_msg = ""
-
-        if self._unlock_timer > 0:
-            self._unlock_timer -= dt
-            if self._unlock_timer <= 0:
-                self._unlock_msg = ""
-
-        if self.phase == self.PHASE_RESULT and self.result_timer > 0:
-            self.result_timer -= dt
-            if self.result_timer <= 0:
-                victory = self.hp_boss <= 0
-                self._exit_battle(victory)
-
-    # -----------------------------------------------------------------------
-    # Отрисовка
-    # -----------------------------------------------------------------------
-
-    def draw(self, screen: pygame.Surface):
-        """
-        Рисует экран боя.
-        """
-        if not self._fonts_loaded:
-            self._load_assets()
-
-        W, H = screen.get_width(), screen.get_height()
-
-        # --- ФОН БОЯ ---
-        if self.battle_bg:
-            screen.blit(self.battle_bg, (0, 0))
-        else:
-            # Градиентный фон
-            for i in range(H):
-                color_value = 18 + int(i / H * 30)
-                pygame.draw.line(screen, (color_value, color_value, color_value + 20), (0, i), (W, i))
-
-
-        # ========== ИЗМЕНЕНИЕ 1: Правильное расположение прямоугольников ==========
-        # Прямоугольник БОССА (справа ВВЕРХУ)
-        boss_box = pygame.Rect(W - 260, 20, 260, 140)
-        pygame.draw.rect(screen, (0, 0, 0), boss_box, border_radius=10)
-        pygame.draw.rect(screen, (255, 255, 255), boss_box, 2, border_radius=10)
-
-        # Прямоугольник ИГРОКА (слева ВНИЗУ)
-        player_box = pygame.Rect(20, 20, 260, 140)
-        pygame.draw.rect(screen, (0, 0, 0), player_box, border_radius=10)
-        pygame.draw.rect(screen, (255, 255, 255), player_box, 2, border_radius=10)
-
-        # ========== ИЗМЕНЕНИЕ 2: Имена над прямоугольниками ==========
-        # Имя босса (над верхним прямоугольником)
-        boss_names = {1: "Внучка", 2: "Отец", 3: "Бабушка"}
-        boss_name = boss_names.get(self.boss_id, "Босс")
-        name_surf = self.font_mid.render(boss_name, True, COLOR_YELLOW)
-        screen.blit(name_surf, (boss_box.x + boss_box.width // 2 - name_surf.get_width() // 2, boss_box.y - 25))
-
-        # Имя игрока (над нижним прямоугольником)
-        player_name_surf = self.font_mid.render("Билли", True, COLOR_YELLOW)
-        screen.blit(player_name_surf,
-                    (player_box.x + player_box.width // 2 - player_name_surf.get_width() // 2, player_box.y - 25))
-
-        # --- Спрайты ---
-        # Спрайт босса (справа в прямоугольнике)
-        if self.boss_sprite:
-            bx = boss_box.x + boss_box.width - self.boss_sprite.get_width() - 20
-            by = boss_box.y + (140 - self.boss_sprite.get_height()) // 2
-            screen.blit(self.boss_sprite, (bx, by))
-
-        # Спрайт игрока (слева в прямоугольнике)
-        if self.player_sprite:
-            px = player_box.x + 20
-            py = player_box.y + (140 - self.player_sprite.get_height()) // 2
-            screen.blit(self.player_sprite, (px, py))
-
-        # ========== ИЗМЕНЕНИЕ 3: HP и уровни БОССА (в верхнем прямоугольнике) ==========
-        # HP бар босса
-        boss_hp_bar_x = boss_box.x + 20
-        boss_hp_bar_y = boss_box.y + 40
-        self._draw_hp_bar(
-            screen, x=boss_hp_bar_x, y=boss_hp_bar_y, w=100, h=18,
-            hp=self.hp_boss, max_hp=BOSS_HP_START.get(self.boss_id, 60),
-            label="", color=COLOR_HP_BOSS, bg=COLOR_HP_BOSS_BG
-        )
-        # Текст HP босса
-        boss_hp_text = self.font_small.render(f"HP: {max(0, self.hp_boss)}/{BOSS_HP_START.get(self.boss_id, 60)}",
-                                              True, COLOR_WHITE)
-        screen.blit(boss_hp_text, (boss_hp_bar_x, boss_hp_bar_y - 18))
-
-        # Уровень Y босса
-        y_surf = self.font_mid.render(f"Уровень Y: {self.y}", True, (100, 180, 255))
-        screen.blit(y_surf, (boss_box.x + 20, boss_box.y + 70))
-
-        # ========== ИЗМЕНЕНИЕ 4: HP и уровни ИГРОКА (в нижнем прямоугольнике) ==========
-        # HP бар игрока
-        hp_bar_x = player_box.x + 120
-        hp_bar_y = player_box.y + 40
-        self._draw_hp_bar(
-            screen, x=hp_bar_x, y=hp_bar_y, w=100, h=18,
-            hp=self.hp_player, max_hp=PLAYER_HP_START.get(self.boss_id, 80),
-            label="", color=COLOR_HP_GREEN, bg=COLOR_HP_BG
-        )
-        # Текст HP игрока
-        hp_text = self.font_small.render(f"HP: {max(0, self.hp_player)}/{PLAYER_HP_START.get(self.boss_id, 80)}",
-                                         True, COLOR_WHITE)
-        screen.blit(hp_text, (hp_bar_x, hp_bar_y - 18))
-
-        # Уровень X игрока
-        x_surf = self.font_mid.render(f"Уровень X: {self.x}", True, COLOR_YELLOW)
-        screen.blit(x_surf, (player_box.x + 120, player_box.y + 70))
-
-        # --- Пример (по центру экрана) ---
-        if self.problem_text:
-            self._draw_problem(screen, W, H)
-        else:
-            # Если нет примера, показываем текущую фазу
-            if self.phase == self.PHASE_PLAYER_CHOOSE:
-                phase_text = self.font_mid.render("Выбери атаку!", True, COLOR_YELLOW)
-                screen.blit(phase_text, (W // 2 - phase_text.get_width() // 2, H // 2 - 30))
-        info_box = pygame.Rect(20, H - 180, W - 40, 160)
-        pygame.draw.rect(screen, (0, 0, 0), info_box, border_radius=10)
-        pygame.draw.rect(screen, (255, 255, 255), info_box, 2, border_radius=10)
-
-        # --- Иконки атак (внутри нижнего блока) ---
-        self._draw_attack_icons(screen, W, H, info_box)
-
-        # --- Подсказка выхода (внутри нижнего блока) ---
-        escape_hint = self.font_hint.render("ESC - выйти из боя", True, COLOR_GRAY)
-        screen.blit(escape_hint, (info_box.x + info_box.width - escape_hint.get_width() - 20,
-                                  info_box.y + info_box.height - 30))
-
-        # --- Сообщение разблокировки (внутри нижнего блока) ---
-        if self._unlock_msg:
-            surf = self.font_mid.render(self._unlock_msg, True, COLOR_GREEN)
-            screen.blit(surf, (info_box.x + info_box.width // 2 - surf.get_width() // 2,
-                               info_box.y + 15))
-
-        # --- Сообщение ошибки (внутри нижнего блока) ---
-        if self.error_msg:
-            surf = self.font_mid.render(self.error_msg, True, COLOR_RED)
-            screen.blit(surf, (info_box.x + info_box.width // 2 - surf.get_width() // 2,
-                               info_box.y + 50))
-
-        # --- Финальное сообщение ---
-        if self.phase == self.PHASE_RESULT and self.result_msg:
-            self._draw_result_overlay(screen, W, H)
-
-    def _draw_hp_bar(self, screen, x, y, w, h, hp, max_hp, label, color, bg):
-        """Рисует полоску HP."""
-        pygame.draw.rect(screen, bg, (x, y, w, h), border_radius=4)
-        fill_w = int(w * max(0, hp) / max(1, max_hp))
-        pygame.draw.rect(screen, color, (x, y, fill_w, h), border_radius=4)
-        pygame.draw.rect(screen, (80, 80, 80), (x, y, w, h), 1, border_radius=4)
-        # Убираем отрисовку label, так как текст HP рисуется отдельно
-
-    def _draw_attack_icons(self, screen, W, H, info_box):
-        """Рисует иконки доступных атак внутри нижнего блока."""
-        attacks = [
-            ("1", "add", "Сложение"),
-            ("2", "sub", "Вычитание"),
-            ("3", "mul", "Умножение"),
-            ("4", "div", "Деление"),
-        ]
-        total = len([a for a in attacks if self._is_attack_available(a[1])])
-        if total == 0:
+        if phase == BattlePhase.BOSS_SHOW:
+            if key in (pygame.K_RETURN, pygame.K_SPACE):
+                b.confirm_boss_show()
             return
 
-        slot_w = 110
-        start_x = info_box.x + info_box.width // 2 - (total * slot_w) // 2
-        drawn = 0
+        if phase in (BattlePhase.BOSS_INPUT, BattlePhase.TUTORIAL_INPUT):
+            if unicode_char.isdigit():
+                b.add_char(unicode_char)
+            elif key == pygame.K_BACKSPACE:
+                b.backspace()
+            elif key == pygame.K_RETURN:
+                b.submit_answer()
+            return
 
-        for key, att, name in attacks:
-            if not self._is_attack_available(att):
-                continue
-            sx = start_x + drawn * slot_w
-            sy = info_box.y + info_box.height - 50
+        if phase == BattlePhase.PLAYER_TURN:
+            attack_map = {
+                pygame.K_1: 1, pygame.K_KP1: 1,
+                pygame.K_2: 2, pygame.K_KP2: 2,
+                pygame.K_3: 3, pygame.K_KP3: 3,
+                pygame.K_4: 4, pygame.K_KP4: 4,
+            }
+            if key in attack_map:
+                b.choose_attack(attack_map[key])
+            return
 
-            # Фон иконки
-            color = (50, 50, 80) if self.phase == self.PHASE_PLAYER_CHOOSE else (30, 30, 50)
-            pygame.draw.rect(screen, color, (sx, sy, 100, 40), border_radius=6)
-            pygame.draw.rect(screen, (80, 80, 120), (sx, sy, 100, 40), 1, border_radius=6)
+        if phase == BattlePhase.VICTORY:
+            if key in (pygame.K_RETURN, pygame.K_SPACE):
+                b.finalize_victory()
+                self._on_victory()
+            return
 
-            # Текст
-            key_surf = self.font_hint.render(f"[{key}]", True, COLOR_YELLOW)
-            name_surf = self.font_hint.render(name, True, COLOR_WHITE)
-            screen.blit(key_surf, (sx + 8, sy + 6))
-            screen.blit(name_surf, (sx + 8, sy + 22))
-            drawn += 1
+        if phase == BattlePhase.DEFEAT:
+            if key in (pygame.K_RETURN, pygame.K_SPACE):
+                self._on_defeat()
+            return
 
-    def _draw_problem(self, screen, W, H):
-        """Рисует блок математического примера по центру экрана."""
-        box_w, box_h = 420, 120
-        box_x = W // 2 - box_w // 2
-        box_y = H // 2 - box_h // 2
+    def update(self, dt: float):
+        """Обновление логики (вызывается из game.py)."""
+        if not self._battle:
+            return
 
-        s = pygame.Surface((box_w, box_h), pygame.SRCALPHA)
-        s.fill((10, 10, 30, 230))
-        screen.blit(s, (box_x, box_y))
-        pygame.draw.rect(screen, (80, 80, 160), (box_x, box_y, box_w, box_h), 2, border_radius=8)
+        self._battle.update(dt)
 
-        lines = self.problem_text.split("\n")
-        for i, line in enumerate(lines):
-            color = COLOR_YELLOW if i == 0 else COLOR_WHITE
-            surf = self.font_mid.render(line, True, color)
-            screen.blit(surf, (box_x + 20, box_y + 15 + i * 30))
+        # Мигание курсора
+        self._cursor_timer += dt
+        if self._cursor_timer >= 0.5:
+            self._cursor_timer = 0.0
+            self._cursor_vis = not self._cursor_vis
 
-        # Поле ввода
-        buf_text = self.answer_buffer + ("_" if (pygame.time.get_ticks() // 500) % 2 == 0 else " ")
-        buf_surf = self.font_big.render(buf_text, True, COLOR_WHITE)
-        inp_x = box_x + box_w // 2 - buf_surf.get_width() // 2
-        inp_y = box_y + box_h - 50
-        pygame.draw.line(screen, (100, 100, 200),
-                         (box_x + 20, inp_y + 36),
-                         (box_x + box_w - 20, inp_y + 36), 2)
-        screen.blit(buf_surf, (inp_x, inp_y))
-        # Убираем подсказку - она теперь в нижнем блоке
+    def draw(self, screen: pygame.Surface):
+        """Отрисовка (вызывается из game.py)."""
+        if not self._battle:
+            return
 
-    def _draw_result_overlay(self, screen, W, H):
-        """Рисует финальный экран поверх всего."""
-        overlay = pygame.Surface((W, H), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 180))
-        screen.blit(overlay, (0, 0))
+        b = self._battle
+        p, boss = b.player, b.boss
 
-        victory = self.hp_boss <= 0
-        color = COLOR_GREEN if victory else COLOR_RED
-        surf = self.font_big.render(self.result_msg, True, color)
-        screen.blit(surf, (W // 2 - surf.get_width() // 2, H // 2 - 30))
+        screen.blit(self._bg, (0, 0))
 
-        sub = self.font_small.render("Возврат через секунду...", True, COLOR_GRAY)
-        screen.blit(sub, (W // 2 - sub.get_width() // 2, H // 2 + 20))
+        # Спрайт босса
+        boss_x = VSCREEN_W - 200
+        boss_y = VSCREEN_H // 2 - 180
+        screen.blit(self._boss_img, (boss_x, boss_y))
+
+        # HP-бары
+        self._draw_hp_bar(screen, PLAYER_HP_X, PLAYER_HP_Y,
+                          p.hp, 50, "Билли", show_x=True, x_val=p.x)
+        self._draw_hp_bar(screen, BOSS_HP_X, BOSS_HP_Y,
+                          boss.hp, boss.HP_START, "Внучка",
+                          show_y=True, y_val=boss.y, y_hidden=not boss.y_revealed)
+
+        # Нижняя панель атак
+        self._draw_attack_panel(screen, p)
+
+        phase = b.phase
+
+        if phase == BattlePhase.BOSS_SHOW:
+            self._draw_boss_attack_announcement(screen, b)
+        elif phase in (BattlePhase.BOSS_INPUT, BattlePhase.TUTORIAL_INPUT):
+            self._draw_input_zone(screen, b)
+        elif phase == BattlePhase.RESULT_SHOW:
+            self._draw_result(screen, b)
+        elif phase == BattlePhase.PLAYER_TURN:
+            self._draw_player_prompt(screen)
+        elif phase == BattlePhase.VICTORY:
+            self._draw_overlay(screen, "Победа!", C_GREEN,
+                               "Нажми Enter чтобы продолжить")
+        elif phase == BattlePhase.DEFEAT:
+            self._draw_overlay(screen, "Wasted...", C_RED,
+                               "Нажми Enter чтобы начать заново")
+
+    # ------------------------------------------------------------------
+    # Переходы после боя
+    # ------------------------------------------------------------------
+
+    def _on_victory(self):
+        """Победа над боссом."""
+        if self._battle:
+            self.game.player_battle_x = self._battle.player.x
+        # Переход обратно на карту
+        self.game.change_state(GameState.EXPLORING)
+
+    def _on_defeat(self):
+        """Поражение — возврат на карту."""
+        self.game.change_state(GameState.EXPLORING)
+
+    # ------------------------------------------------------------------
+    # UI методы (оставлены без изменений, только убран параметр game)
+    # ------------------------------------------------------------------
+
+    def _draw_hp_bar(self, screen, x, y, hp, max_hp,
+                     name, show_x=False, x_val=0,
+                     show_y=False, y_val=0, y_hidden=False):
+        name_surf = self._font_small.render(name, True, C_WHITE)
+        screen.blit(name_surf, (x, y))
+        y += 18
+
+        pygame.draw.rect(screen, C_HP_BG, (x, y, HP_BAR_W, HP_BAR_H), border_radius=4)
+
+        fill_w = max(0, int(HP_BAR_W * hp / max(1, max_hp)))
+        color = C_HP_GREEN if hp > max_hp * 0.3 else C_HP_RED
+        if fill_w > 0:
+            pygame.draw.rect(screen, color, (x, y, fill_w, HP_BAR_H), border_radius=4)
+
+        hp_text = self._font_small.render(f"{max(0, hp)} / {max_hp}", True, C_WHITE)
+        screen.blit(hp_text, (x + HP_BAR_W // 2 - hp_text.get_width() // 2, y + 1))
+        y += HP_BAR_H + 4
+
+        if show_x:
+            xt = self._font_small.render(f"X (урон) = {x_val}", True, C_YELLOW)
+            screen.blit(xt, (x, y))
+        if show_y:
+            label = "Y = ?" if y_hidden else f"Y (урон) = {y_val}"
+            yt = self._font_small.render(label, True, C_ORANGE)
+            screen.blit(yt, (x, y))
+
+    def _draw_attack_panel(self, screen, player: PlayerState):
+        panel_rect = pygame.Rect(0, ATTACK_PANEL_Y - 10, VSCREEN_W, 110)
+        panel_surf = pygame.Surface((panel_rect.w, panel_rect.h), pygame.SRCALPHA)
+        panel_surf.fill((0, 0, 0, 160))
+        screen.blit(panel_surf, panel_rect.topleft)
+
+        attacks_info = {
+            1: ("1 — Сложение",  player.add_unlocked),
+            2: ("2 — Вычитание", player.sub_unlocked),
+            3: ("3 — Умножение", player.mul_unlocked),
+            4: ("4 — Деление",   player.div_unlocked),
+        }
+
+        slot_w = VSCREEN_W // 4
+        for idx, (label, unlocked) in attacks_info.items():
+            sx = (idx - 1) * slot_w
+            sy = ATTACK_PANEL_Y
+
+            if unlocked:
+                color = C_WHITE
+                bg = (40, 80, 40, 180)
+            else:
+                color = C_GRAY
+                bg = (20, 20, 20, 100)
+
+            bg_surf = pygame.Surface((slot_w - 4, 60), pygame.SRCALPHA)
+            bg_surf.fill(bg)
+            screen.blit(bg_surf, (sx + 2, sy))
+
+            txt = self._font_small.render(label, True, color)
+            screen.blit(txt, (sx + slot_w // 2 - txt.get_width() // 2, sy + 20))
+
+    def _draw_boss_attack_announcement(self, screen, b: BattleSystem):
+        attack_names = {
+            "tutorial_add": "Обучение: Сложение",
+            "tutorial_sub": "Обучение: Вычитание",
+            "basic": "Базовый удар!",
+            "add": "Атака: Сложение",
+            "sub": "Атака: Вычитание",
+        }
+        name = attack_names.get(b._boss_attack, b._boss_attack)
+
+        box_rect = pygame.Rect(100, PROBLEM_Y - 20, 600, 150)
+        self._draw_box(screen, box_rect)
+
+        title = self._font_big.render(f"Внучка: {name}", True, C_ORANGE)
+        screen.blit(title, (VSCREEN_W // 2 - title.get_width() // 2, PROBLEM_Y))
+
+        if b._boss_attack == "basic":
+            dmg_text = self._font_med.render(f"Базовый урон: -{b.boss.y}", True, C_RED)
+            screen.blit(dmg_text, (VSCREEN_W // 2 - dmg_text.get_width() // 2, PROBLEM_Y + 40))
+        elif b._boss_problem:
+            for i, line in enumerate(b._boss_problem.split("\n")):
+                ls = self._font_med.render(line, True, C_WHITE)
+                screen.blit(ls, (VSCREEN_W // 2 - ls.get_width() // 2, PROBLEM_Y + 40 + i * 26))
+
+        hint = self._font_small.render("Нажми Enter чтобы продолжить", True, C_GRAY)
+        screen.blit(hint, (VSCREEN_W // 2 - hint.get_width() // 2, PROBLEM_Y + 120))
+
+    def _draw_input_zone(self, screen, b: BattleSystem):
+        box_rect = pygame.Rect(100, PROBLEM_Y - 20, 600, 180)
+        self._draw_box(screen, box_rect)
+
+        for i, line in enumerate(b._boss_problem.split("\n")):
+            ls = self._font_big.render(line, True, C_WHITE)
+            screen.blit(ls, (VSCREEN_W // 2 - ls.get_width() // 2, PROBLEM_Y + i * 34))
+
+        inp_y = PROBLEM_Y + 80
+        cursor = "|" if self._cursor_vis else " "
+        inp_str = b.input_buffer + cursor
+        inp_surf = self._font_big.render(inp_str, True, C_YELLOW)
+        inp_x = VSCREEN_W // 2 - inp_surf.get_width() // 2
+        pygame.draw.rect(screen, (40, 40, 60),
+                         (inp_x - 10, inp_y - 4, inp_surf.get_width() + 20, 36),
+                         border_radius=4)
+        screen.blit(inp_surf, (inp_x, inp_y))
+
+        if b.error_text:
+            err = self._font_med.render(b.error_text, True, C_RED)
+            screen.blit(err, (VSCREEN_W // 2 - err.get_width() // 2, PROBLEM_Y + 130))
+
+        hint = self._font_small.render("Введи ответ, нажми Enter", True, C_GRAY)
+        screen.blit(hint, (VSCREEN_W // 2 - hint.get_width() // 2, PROBLEM_Y + 155))
+
+    def _draw_result(self, screen, b: BattleSystem):
+        if not b.result_text:
+            return
+        box_rect = pygame.Rect(150, PROBLEM_Y, 500, 80)
+        self._draw_box(screen, box_rect, alpha=180)
+
+        txt = self._font_med.render(b.result_text, True, C_WHITE)
+        screen.blit(txt, (VSCREEN_W // 2 - txt.get_width() // 2, PROBLEM_Y + 25))
+
+    def _draw_player_prompt(self, screen):
+        hint = self._font_med.render("Твой ход — выбери атаку (1-4)", True, C_WHITE)
+        screen.blit(hint, (VSCREEN_W // 2 - hint.get_width() // 2, PROBLEM_Y + 30))
+
+    def _draw_overlay(self, screen, title: str, title_color, subtitle: str):
+        ov = pygame.Surface((VSCREEN_W, VSCREEN_H), pygame.SRCALPHA)
+        ov.fill((0, 0, 0, 160))
+        screen.blit(ov, (0, 0))
+
+        ts = self._font_big.render(title, True, title_color)
+        sub = self._font_med.render(subtitle, True, C_WHITE)
+
+        cy = VSCREEN_H // 2
+        screen.blit(ts, (VSCREEN_W // 2 - ts.get_width() // 2, cy - 30))
+        screen.blit(sub, (VSCREEN_W // 2 - sub.get_width() // 2, cy + 20))
+
+    @staticmethod
+    def _draw_box(screen, rect: pygame.Rect, alpha=200):
+        surf = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
+        surf.fill((10, 10, 30, alpha))
+        screen.blit(surf, rect.topleft)
+        pygame.draw.rect(screen, C_GRAY, rect, 1, border_radius=6)
