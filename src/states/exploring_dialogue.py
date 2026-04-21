@@ -147,7 +147,7 @@ class ExploringDialogueState:
                                 if battle:
                                     exploring = self.game.states.get(GameState.EXPLORING)
                                     saved_x = getattr(exploring, '_saved_battle_x', 0)
-                                    battle.start_battle(boss_id, saved_x)
+                                    battle.enter(boss_id, saved_x)
                                     self.game.change_state(GameState.BATTLE)
                                 else:
                                     # Fallback: если BattleState не зарегистрирован

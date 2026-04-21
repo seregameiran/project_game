@@ -1,54 +1,66 @@
 """
-Вспомогательный модуль для генерации математических примеров.
-Используется как утилита — вся основная логика генерации
-живёт в самих классах боссов (boss-1.py и т.д.).
-
-Здесь — общие хелперы, которые могут пригодиться в разных местах.
+src/battle/math_problem.py
+Генерация математических примеров для боя.
+Никаких зависимостей от pygame или игровой логики.
 """
 
 import random
-import math
+
+# Человекочитаемые имена атак
+ATTACK_NAMES = {
+    "add": "Сложение",
+    "sub": "Вычитание",
+    "mul": "Умножение",
+    "div": "Деление",
+}
+
+_OP_MAP = {"add": "+", "sub": "-", "mul": "*", "div": "/"}
 
 
-def make_addition_problem(y: int, n: int) -> tuple[str, int]:
-    """Y + N = ?, ответ = Y + N."""
-    return f"{y} + {n} = ?", y + n
+def make_problem(op: str) -> tuple[str, int]:
+    """Случайный пример для оператора '+', '-', '*', '/'."""
+    if op == "+":
+        a, b = random.randint(1, 9), random.randint(1, 9)
+        return f"{a} + {b} = ?", a + b
+    elif op == "-":
+        b = random.randint(1, 5)
+        a = random.randint(b, b + 6)
+        return f"{a} - {b} = ?", a - b
+    elif op == "*":
+        a, b = random.randint(2, 5), random.randint(2, 4)
+        return f"{a} × {b} = ?", a * b
+    else:  # "/"
+        b = random.randint(2, 4)
+        a = b * random.randint(2, 5)
+        return f"{a} ÷ {b} = ?", a // b
 
 
-def make_subtraction_problem(x: int, y: int) -> tuple[str, int]:
+def gen_tutorial_add_problem(y: int) -> tuple[str, int]:
     """
-    |X – Y| = ?
-    Используется и для учебного примера, и для обычного.
+    Первый ход — обучение сложению.
+    Показывает «Y + 1 = {y+1}», игрок должен ввести значение Y.
     """
-    ans = abs(x - y)
-    return f"|{x} – {y}| = ?", ans
+    return f"Y + 1 = {y + 1}\nY = ?", y
 
 
-def make_multiplication_problem(x: int, y: int) -> tuple[str, int]:
-    """X × Y = ?"""
-    return f"{x} × {y} = ?", x * y
-
-
-def make_division_problem(x: int, y: int) -> tuple[str, int]:
+def gen_tutorial_sub_problem(x: int, y: int) -> tuple[str, int]:
     """
-    X ÷ Y = ? (округление вниз)
-    Защита от деления на 0.
+    Обучение вычитанию (когда X достигает 7).
+    Показывает «|X – Y| = |{x} – {y}| = ?».
     """
-    if y == 0:
-        return f"{x} ÷ 1 = ?", x
-    return f"{x} ÷ {y} = ?", x // y
+    return f"|X – Y| = |{x} – {y}| = ?", abs(x - y)
+
+def gen_boss_add_problem(y: int, n_min: int, n_max: int) -> tuple[str, int]:
+    """
+    Атака босса: Сложение.
+    Показывает «{y} + {n} = ?», игрок вводит сумму.
+    """
+    n = random.randint(n_min, n_max)
+    return f"[Атака босса: Сложение]\n{y} + {n} = ?", y + n, n
 
 
-def random_n(n_min: int, n_max: int) -> int:
-    """Случайное N в диапазоне [n_min, n_max]."""
-    return random.randint(n_min, n_max)
-
-
-def floor_div2(x: int, minimum: int = 0) -> int:
-    """x // 2, не меньше minimum."""
-    return max(minimum, x // 2)
-
-
-def ceil_div(x: float, d: float) -> int:
-    """Деление с округлением вверх (для x / 1.5 и т.п.)."""
-    return math.ceil(x / d)
+def gen_boss_problem(attack_type: str) -> tuple[str, int]:
+    """Случайный пример для обычной атаки босса."""
+    op = _OP_MAP.get(attack_type, "+")
+    text, ans = make_problem(op)
+    return f"[Атака босса: {ATTACK_NAMES[attack_type]}]\n{text}", ans

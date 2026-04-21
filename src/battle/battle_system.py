@@ -1,317 +1,551 @@
 """
-Ядро боевой системы — чистая логика без pygame.
-Управляет фазами боя, очерёдностью ходов и состоянием участников.
+src/battle/battle_system.py
+Чистая логика пошагового боя — без pygame, без ссылок на game.
 
-Фазы боя (BattlePhase):
-  TUTORIAL_SHOW  — показываем обучающий пример
-  TUTORIAL_INPUT — ожидаем ввод ответа (с флагом retry)
-  PLAYER_TURN    — игрок выбирает атаку (1-4)
-  BOSS_SHOW      — показываем пример босса (или просто текст удара)
-  BOSS_INPUT     — ожидаем ввод ответа на пример босса
-  RESULT_SHOW    — кратко показываем результат хода
-  VICTORY        — победа
-  DEFEAT         — поражение
+Отличия от старой версии (исправлено по документу):
+  - HP игрока/босса и Y откорректированы под доку
+  - Туториал сложения: фиксированный пример «Y+1=3», ответ=Y, после успеха X=2
+  - Туториал вычитания: пример «|X–Y|=?», X не уменьшается при успехе
+  - Y скрыт до конца туториала сложения (флаг y_revealed)
+  - Интервал вычитания босса: случайный 3–4 хода
 """
 
-from dataclasses import dataclass, field
+import random
+from .math_problem import (
+    ATTACK_NAMES,
+    gen_tutorial_add_problem,
+    gen_tutorial_sub_problem,
+    gen_boss_problem,
+)
+
+# ---------------------------------------------------------------------------
+# Константы параметров боссов (строго по документу)
+# ---------------------------------------------------------------------------
+
+PLAYER_HP_START = {1: 50,  2: 60,  3: 70}
+BOSS_HP_START   = {1: 50,  2: 70,  3: 100}
+BOSS_Y_START    = {1: 2,   2: 4,   3: 6}
+BOSS_N_MIN      = {1: 2,   2: 3,   3: 4}
+BOSS_N_MAX      = {1: 6,   2: 7,   3: 8}
+
+# X-порог для разблокировки атак
+UNLOCK_X_SUB = 7
+UNLOCK_X_MUL = 10
+UNLOCK_X_DIV = 12
+
+# Интервалы атак босса (в ходах)
+BOSS_ADD_INTERVAL = 2       # раз в 2 хода
+BOSS_SUB_INTERVAL_MIN = 3   # раз в 3–4 хода (случайно)
+BOSS_SUB_INTERVAL_MAX = 4
+BOSS_MUL_INTERVAL = 4
+BOSS_DIV_INTERVAL = 4
 
 
-# -----------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 # Фазы боя
-# -----------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 
-class BattlePhase:
-    TUTORIAL_SHOW  = "tutorial_show"
-    TUTORIAL_INPUT = "tutorial_input"
-    PLAYER_TURN    = "player_turn"
-    BOSS_SHOW      = "boss_show"
-    BOSS_INPUT     = "boss_input"
-    RESULT_SHOW    = "result_show"
-    VICTORY        = "victory"
-    DEFEAT         = "defeat"
+class Phase:
+    PLAYER_CHOOSE = "player_choose"   # игрок выбирает атаку (1–4)
+    PLAYER_ANSWER = "player_answer"   # игрок вводит ответ на туториал
+    BOSS_ANSWER   = "boss_answer"     # игрок вводит ответ на атаку босса
+    RESULT        = "result"          # финальная заставка победы / поражения
 
 
-# -----------------------------------------------------------------------
-# Данные игрока во время боя
-# -----------------------------------------------------------------------
-
-@dataclass
-class PlayerState:
-    hp:            int  = 50
-    x:             int  = 0   # текущий урон игрока
-    add_unlocked:  bool = False
-    sub_unlocked:  bool = False
-    mul_unlocked:  bool = False
-    div_unlocked:  bool = False
-
-    # Буфф от атаки «Умножение» (для боссов 2-3, здесь не используется)
-    multiply_buff: bool = False
-
-    def available_attacks(self) -> list[tuple[int, str]]:
-        """Возвращает список (номер_клавиши, название) доступных атак."""
-        result = []
-        if self.add_unlocked:
-            result.append((1, "Сложение"))
-        if self.sub_unlocked:
-            result.append((2, "Вычитание"))
-        if self.mul_unlocked:
-            result.append((3, "Умножение"))
-        if self.div_unlocked:
-            result.append((4, "Деление"))
-        return result
-
-    def is_dead(self) -> bool:
-        return self.hp <= 0
-
-
-# -----------------------------------------------------------------------
-# Основной класс боевой системы
-# -----------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Основной класс
+# ---------------------------------------------------------------------------
 
 class BattleSystem:
     """
-    Управляет одним боем с конкретным боссом.
-
-    Использование:
-        player = PlayerState(hp=50, x=0)
-        boss   = Boss1()
-        battle = BattleSystem(boss, player)
-        battle.start()          # → phase = TUTORIAL_SHOW
-
-    На каждом «экране» состояние battle.phase говорит,
-    что должно рисоваться. Когда игрок что-то нажал —
-    вызываем нужный метод (submit_answer, choose_attack и т.д.)
-    и снова смотрим на phase.
+    Вся логика боя. Не знает ничего о pygame и audio.
+    BattleState читает публичные поля и вызывает методы on_*.
     """
 
-    # Сколько секунд показывать RESULT_SHOW перед следующим ходом
-    RESULT_SHOW_DURATION = 1.8
+    def __init__(self, boss_id: int, saved_x: int = 0):
+        self.boss_id  = int(boss_id)
+        self.saved_x  = saved_x
 
-    def __init__(self, boss, player: PlayerState):
-        self.boss   = boss
-        self.player = player
+        # Игровые параметры
+        self.hp_player    = 0
+        self.hp_boss      = 0
+        self.x            = 0   # урон игрока
+        self.y            = 0   # урон босса
+        self.y_revealed   = False  # Y скрыт до конца туториала сложения
+        self.turn_counter = 0
 
-        self.phase: str = BattlePhase.PLAYER_TURN
+        # Баффы
+        self.mul_next_double = False   # следующая атака игрока ×2
+        self.div_next_half   = False   # следующий удар босса ÷2
+        self._boss_next_mul2 = False   # следующий базовый удар босса ×2
 
-        # Текущая атака босса
-        self._boss_attack:    str = ""
-        self._boss_problem:   str = ""
-        self._boss_answer:    int = 0
-        self._boss_retry:     bool = False   # True = уже дана одна попытка
+        # Разблокировки атак игрока
+        self.add_unlocked = False
+        self.sub_unlocked = False
+        self.mul_unlocked = False
+        self.div_unlocked = False
 
-        # Результат хода для отображения
-        self.result_text: str = ""
-        self._result_timer: float = 0.0
+        # Разблокировка: внутреннее состояние
+        self._pending_unlock = None   # "add" / "sub" / "mul" / "div"
+        self._unlock_stage   = 0      # 1 = первая попытка, 2 = последняя
 
-        # Текущий вводимый ответ (строка цифр)
-        self.input_buffer: str = ""
+        # Пример и ввод
+        self.problem_text   = ""
+        self.correct_answer = 0
+        self.answer_buffer  = ""
 
-        # Сообщение об ошибке (для UI)
-        self.error_text: str = ""
+        # Текущая атака босса и выбранный N для атаки сложением
+        self._boss_attack = None
+        self._boss_n      = 0   # N, выбранный при генерации примера сложения
 
-    # ------------------------------------------------------------------
-    # Запуск боя
-    # ------------------------------------------------------------------
+        # Счётчики интервалов атак босса
+        self._turns_since_add = 0
+        self._turns_since_sub = 0
+        self._turns_since_mul = 0
+        self._turns_since_div = 0
+        # Текущий случайный порог для вычитания босса
+        self._sub_threshold = random.randint(BOSS_SUB_INTERVAL_MIN, BOSS_SUB_INTERVAL_MAX)
 
-    def start(self):
-        """Вызвать один раз при входе в состояние Battle."""
-        self._begin_boss_turn()
+        # Сообщения для UI
+        self.feedback_msg   = ""
+        self.feedback_timer = 0.0
+        self.error_msg      = ""
+        self.error_timer    = 0.0
+        self.result_msg     = ""
+        self.result_timer   = 0.0
 
-    # ------------------------------------------------------------------
-    # Ход игрока
-    # ------------------------------------------------------------------
+        self.phase   = Phase.PLAYER_CHOOSE
+        self.victory = False
 
-    def choose_attack(self, attack_num: int) -> bool:
-        """
-        Игрок нажал клавишу 1-4.
-        Возвращает True если атака применена, False если недоступна.
-        """
-        if self.phase != BattlePhase.PLAYER_TURN:
-            return False
+    # -----------------------------------------------------------------------
+    # Инициализация
+    # -----------------------------------------------------------------------
 
-        attacks = {k: v for k, v in self.player.available_attacks()}
-        # available_attacks() даёт (номер, название), делаем dict номер→название
-        avail = {k: v for k, v in self.player.available_attacks()}
+    def enter(self):
+        """Инициализирует бой. Вызывать один раз при входе в состояние."""
+        self.hp_player = PLAYER_HP_START.get(self.boss_id, 50)
+        self.hp_boss   = BOSS_HP_START.get(self.boss_id, 50)
+        self.y         = BOSS_Y_START.get(self.boss_id, 2)
 
-        if attack_num not in avail:
-            return False
+        # Первый босс всегда начинает с X=0.
+        # Остальные — с сохранённым X ÷ 2 (минимум 1).
+        self.x = 0 if self.boss_id == 1 else max(1, self.saved_x // 2)
 
-        self._apply_player_attack(attack_num)
-        return True
+        # Y скрыт до завершения первого туториала
+        self.y_revealed = (self.boss_id != 1)
 
-    def _apply_player_attack(self, attack_num: int):
-        """Применяет атаку игрока и проверяет победу."""
-        p, b = self.player, self.boss
-        buff = p.multiply_buff
-        p.multiply_buff = False  # баф одноразовый
+        self.turn_counter    = 0
+        self.mul_next_double = False
+        self.div_next_half   = False
+        self._boss_next_mul2 = False
 
-        if attack_num == 1:   # Сложение
-            delta = (p.x + 1) * 2 if buff else p.x + 1
-            p.x  = p.x + 1 if not buff else (p.x + 1) * 2
-            # При сложении X сначала увеличивается, потом наносится урон
-            # Из доки: X = X+1, HP_boss -= X (нового X)
-            # Поэтому если buff: X = (X+1)*2
-            if not buff:
-                p.x += 0   # уже обновлен выше, просто для ясности
-            b.take_damage(p.x)
-            self.result_text = f"Сложение! X = {p.x}, урон боссу: -{p.x}"
+        self._turns_since_add = 0
+        self._turns_since_sub = 0
+        self._turns_since_mul = 0
+        self._turns_since_div = 0
+        self._sub_threshold = random.randint(BOSS_SUB_INTERVAL_MIN, BOSS_SUB_INTERVAL_MAX)
 
-        elif attack_num == 2:  # Вычитание
-            if buff:
-                b.y   = max(0, b.y - 4)
-                b.take_damage(4)
-                self.result_text = f"Вычитание ×2! Y = {b.y}, урон боссу: -4"
-            else:
-                b.y   = max(0, b.y - 2)
-                b.take_damage(2)
-                self.result_text = f"Вычитание! Y = {b.y}, урон боссу: -2"
+        # Разблокировки: у первого босса всё с нуля.
+        # У последующих — сохранённый X мог уже превысить пороги.
+        self.add_unlocked = False
+        self.sub_unlocked = (self.x >= UNLOCK_X_SUB)
+        self.mul_unlocked = (self.boss_id >= 2 and self.x >= UNLOCK_X_MUL)
+        self.div_unlocked = (self.boss_id >= 3 and self.x >= UNLOCK_X_DIV)
 
-        elif attack_num == 3:  # Умножение (бафф на след. атаку)
-            p.multiply_buff = True
-            self.result_text = "Умножение! Следующая атака удвоена."
+        self._pending_unlock = None
+        self._unlock_stage   = 0
+        self.answer_buffer   = ""
+        self.problem_text    = ""
+        self._boss_attack    = None
+        self._boss_n         = 0
 
-        elif attack_num == 4:  # Деление (защита от след. удара)
-            b._halve_next_hit = True
-            self.result_text = "Деление! Следующий удар босса ÷ 2."
+        self.feedback_msg   = ""
+        self.feedback_timer = 0.0
+        self.error_msg      = ""
+        self.error_timer    = 0.0
+        self.result_msg     = ""
+        self.result_timer   = 0.0
+        self.victory        = False
 
-        self._transition_after_player(attack_num)
-
-    def _transition_after_player(self, attack_num: int):
-        """После атаки игрока — проверяем победу, потом ход босса."""
-        if self.boss.is_dead():
-            self.phase = BattlePhase.VICTORY
-            return
-        self._show_result_then(lambda: self._begin_boss_turn())
-
-    # ------------------------------------------------------------------
-    # Ход босса
-    # ------------------------------------------------------------------
-
-    def _begin_boss_turn(self):
-        attack = self.boss.choose_attack(self.player.x)
-        self._boss_attack = attack
-        self._boss_retry  = False
-
-        if attack == "basic":
-            # Базовый удар без ввода
-            self._boss_problem = ""
-            self._boss_answer  = 0
-            self.phase = BattlePhase.BOSS_SHOW
+        # Первый ход: туториал сложения (если ещё не открыто)
+        if not self.add_unlocked:
+            self._start_unlock("add")
+            self.phase = Phase.PLAYER_ANSWER
         else:
-            problem, answer = self.boss.make_problem(attack, self.player.x)
-            self._boss_problem = problem
-            self._boss_answer  = answer
-            self.input_buffer  = ""
-            self.error_text    = ""
-            self.phase = BattlePhase.BOSS_SHOW
+            self.phase = Phase.PLAYER_CHOOSE
 
-    def confirm_boss_show(self):
-        """
-        Вызывается когда игрок нажал Enter/пробел чтобы «увидел» удар босса.
-        Переходит к вводу ответа или сразу применяет базовый удар.
-        """
-        if self.phase != BattlePhase.BOSS_SHOW:
-            return
-
-        if self._boss_attack == "basic":
-            self._apply_boss_basic()
-        else:
-            self.phase = BattlePhase.BOSS_INPUT
-
-    def _apply_boss_basic(self):
-        effect = self.boss.apply_basic(self.player)
-        self.result_text = effect
-        self._check_defeat_or_continue()
-
-    def submit_answer(self) -> bool:
-        """
-        Игрок нажал Enter при вводе ответа на пример босса.
-        Возвращает True если ответ принят (независимо от правильности).
-        """
-        if self.phase not in (BattlePhase.BOSS_INPUT, BattlePhase.TUTORIAL_INPUT):
-            return False
-        if not self.input_buffer:
-            return False
-
-        try:
-            given = int(self.input_buffer)
-        except ValueError:
-            self.error_text = "Введи число!"
-            return False
-
-        self.input_buffer = ""
-        self.error_text   = ""
-
-        is_tutorial = self._boss_attack in ("tutorial_add", "tutorial_sub")
-        correct     = (given == self._boss_answer)
-
-        if correct:
-            effect = self.boss.apply_correct(self._boss_attack, self.player)
-            self.result_text = effect
-            self._check_defeat_or_continue()
-        else:
-            if is_tutorial and not self._boss_retry:
-                # Первая ошибка в обучении — даём ещё одну попытку
-                self._boss_retry = True
-                self.error_text  = "Неправильно! Попробуй ещё раз."
-                # Остаёмся в фазе ввода
-            else:
-                effect = self.boss.apply_wrong(self._boss_attack, self.player)
-                if effect == "DEATH":
-                    self.phase = BattlePhase.DEFEAT
-                else:
-                    self.result_text = effect
-                    self._check_defeat_or_continue()
-        return True
-
-    def add_char(self, ch: str):
-        """Добавить цифру в буфер ввода (вызывать при нажатии цифры)."""
-        if len(self.input_buffer) < 6 and ch.isdigit():
-            self.input_buffer += ch
-
-    def backspace(self):
-        """Удалить последний символ из буфера."""
-        self.input_buffer = self.input_buffer[:-1]
-
-    # ------------------------------------------------------------------
-    # Вспомогательные переходы
-    # ------------------------------------------------------------------
-
-    def _check_defeat_or_continue(self):
-        if self.player.is_dead():
-            self.phase = BattlePhase.DEFEAT
-        elif self.boss.is_dead():
-            self.phase = BattlePhase.VICTORY
-        else:
-            self._show_result_then(lambda: self._go_player_turn())
-
-    def _go_player_turn(self):
-        self.phase = BattlePhase.PLAYER_TURN
-
-    def _show_result_then(self, callback):
-        """Устанавливает фазу RESULT_SHOW и запоминает callback."""
-        self.phase             = BattlePhase.RESULT_SHOW
-        self._result_timer     = self.RESULT_SHOW_DURATION
-        self._result_callback  = callback
+    # -----------------------------------------------------------------------
+    # Обновление таймеров
+    # -----------------------------------------------------------------------
 
     def update(self, dt: float):
-        """
-        Вызывать каждый кадр с delta-time в секундах.
-        Нужно только для автоматического перехода из RESULT_SHOW.
-        """
-        if self.phase == BattlePhase.RESULT_SHOW:
-            self._result_timer -= dt
-            if self._result_timer <= 0:
-                self._result_callback()
+        if self.feedback_timer > 0:
+            self.feedback_timer -= dt
+            if self.feedback_timer <= 0:
+                self.feedback_msg = ""
 
-    # ------------------------------------------------------------------
-    # Итог боя
-    # ------------------------------------------------------------------
+        if self.error_timer > 0:
+            self.error_timer -= dt
+            if self.error_timer <= 0:
+                self.error_msg = ""
+
+        # BattleState сам смотрит на result_timer <= 0 и делает переход
+        if self.phase == Phase.RESULT and self.result_timer > 0:
+            self.result_timer -= dt
+
+    # -----------------------------------------------------------------------
+    # Ввод: атака игрока (клавиши 1–4)
+    # -----------------------------------------------------------------------
+
+    def on_attack_key(self, attack_type: str) -> bool:
+        """Возвращает True если атака применена."""
+        if self.phase != Phase.PLAYER_CHOOSE:
+            return False
+        if not self._is_unlocked(attack_type):
+            return False
+
+        self._apply_player_attack(attack_type)
+        self.turn_counter += 1
+
+        if not self._check_end():
+            self._check_unlock_conditions()
+            if self.phase == Phase.PLAYER_CHOOSE:
+                self._do_boss_turn()
+        return True
+
+    # -----------------------------------------------------------------------
+    # Ввод: ответ на пример
+    # -----------------------------------------------------------------------
+
+    def on_digit(self, ch: str):
+        if self.phase in (Phase.PLAYER_ANSWER, Phase.BOSS_ANSWER):
+            if len(self.answer_buffer) < 4 and ch.isdigit():
+                self.answer_buffer += ch
+
+    def on_backspace(self):
+        self.answer_buffer = self.answer_buffer[:-1]
+
+    def on_confirm(self) -> bool:
+        if self.phase not in (Phase.PLAYER_ANSWER, Phase.BOSS_ANSWER):
+            return False
+        if not self.answer_buffer:
+            return False
+
+        correct = self._validate()
+        if self.phase == Phase.PLAYER_ANSWER:
+            self._resolve_unlock(correct)
+        else:
+            self._resolve_boss_answer(correct)
+        return True
+
+    # -----------------------------------------------------------------------
+    # Атаки игрока
+    # -----------------------------------------------------------------------
+
+    def _apply_player_attack(self, attack_type: str):
+        mult = 2 if self.mul_next_double else 1
+        self.mul_next_double = False
+
+        if attack_type == "add":
+            # X = X + 1 (×2 если бафф), HP босса -= новый X
+            self.x += 1 * mult
+            self.hp_boss -= self.x
+            self._feedback(f"+{mult} к X! HP босса -{self.x}")
+
+        elif attack_type == "sub":
+            # Y = Y – 2 (×2 если бафф), HP босса -= 2 (×2 если бафф)
+            dmg = 2 * mult
+            self.y = max(0, self.y - dmg)
+            self.hp_boss -= dmg
+            self._feedback(f"Y босса -{dmg}, HP босса -{dmg}")
+
+        elif attack_type == "mul":
+            # Бафф: следующая атака ×2
+            self.mul_next_double = True
+            self._feedback("Следующая атака удвоена!")
+
+        elif attack_type == "div":
+            # Бафф: следующий удар босса ÷2
+            self.div_next_half = True
+            self._feedback("Следующий удар босса ослаблен!")
+
+    # -----------------------------------------------------------------------
+    # Ход босса
+    # -----------------------------------------------------------------------
+
+    def _do_boss_turn(self):
+        attack = self._choose_boss_attack()
+
+        if attack == "basic":
+            divisor = 2 if self.div_next_half else 1
+            self.div_next_half   = False
+            mult = 2 if self._boss_next_mul2 else 1
+            self._boss_next_mul2 = False
+            dmg = max(1, (self.y * mult) // divisor)
+            self.hp_player -= dmg
+            self._feedback(f"Босс: базовый удар -{dmg} HP")
+            self._check_end()
+        else:
+            self._boss_attack = attack
+
+            if attack == "add":
+                # Пример вида «Y + N = ?» с реальным текущим Y
+                n = random.randint(
+                    BOSS_N_MIN.get(self.boss_id, 2),
+                    BOSS_N_MAX.get(self.boss_id, 6),
+                )
+                self._boss_n        = n
+                self.problem_text   = f"[Атака босса: Сложение]\n{self.y} + {n} = ?"
+                self.correct_answer = self.y + n
+            else:
+                self._boss_n = 0
+                text, ans = gen_boss_problem(attack)
+                self.problem_text   = text
+                self.correct_answer = ans
+
+            self.answer_buffer = ""
+            self.error_msg     = ""
+            self.phase = Phase.BOSS_ANSWER
+
+    def _choose_boss_attack(self) -> str:
+        """
+        Выбирает тип атаки босса на основе счётчиков ходов.
+        Вычитание: случайный порог 3–4 хода.
+        Остальные: фиксированные интервалы.
+        """
+        # Деление (только босс 3)
+        if self.boss_id >= 3:
+            self._turns_since_div += 1
+            if self._turns_since_div >= BOSS_DIV_INTERVAL:
+                self._turns_since_div = 0
+                return "div"
+
+        # Умножение (только босс 2+)
+        if self.boss_id >= 2:
+            self._turns_since_mul += 1
+            if self._turns_since_mul >= BOSS_MUL_INTERVAL:
+                self._turns_since_mul = 0
+                return "mul"
+
+        # Вычитание (случайный интервал 3–4)
+        if self.sub_unlocked:  # появляется только после разблокировки у игрока
+            self._turns_since_sub += 1
+            if self._turns_since_sub >= self._sub_threshold:
+                self._turns_since_sub = 0
+                self._sub_threshold = random.randint(
+                    BOSS_SUB_INTERVAL_MIN, BOSS_SUB_INTERVAL_MAX
+                )
+                return "sub"
+
+        # Сложение (каждые 2 хода)
+        self._turns_since_add += 1
+        if self._turns_since_add >= BOSS_ADD_INTERVAL:
+            self._turns_since_add = 0
+            return "add"
+
+        return "basic"
+
+    def _resolve_boss_answer(self, correct: bool):
+        self._apply_boss_effect(self._boss_attack, correct)
+        if not correct:
+            self._set_error("Ошибка!")
+        self.answer_buffer = ""
+        self.problem_text  = ""
+        self._boss_attack  = None
+        if not self._check_end():
+            self.phase = Phase.PLAYER_CHOOSE
+
+    def _apply_boss_effect(self, attack: str, correct: bool):
+        if attack == "add":
+            # N уже был выбран при генерации примера и показан игроку
+            n = self._boss_n
+            delta = n if correct else n * 2
+            self.y += delta
+            self._feedback(f"{'Y' if correct else 'Ошибка! Y'} +{delta} → Y={self.y}")
+
+        elif attack == "sub":
+            # Правильно: X -= 2; Ошибка: X = X // 2
+            if correct:
+                self.x = max(0, self.x - 2)
+                self._feedback(f"Босс: X -2 → X={self.x}")
+            else:
+                self.x = max(0, self.x // 2)
+                self._feedback(f"Ошибка! X ÷2 → X={self.x}")
+
+        elif attack == "mul":
+            # Правильно: следующий удар босса ×2
+            # Ошибка: X = X ÷ 1.5 (вверх), Y = Y × 2
+            if correct:
+                self._boss_next_mul2 = True
+                self._feedback("Босс: следующий удар ×2!")
+            else:
+                self.x = max(0, int(self.x / 1.5))
+                self.y = int(self.y * 2)
+                self._feedback(f"Ошибка! X ÷1.5={self.x}, Y ×2={self.y}")
+
+        elif attack == "div":
+            # Правильно: X = X ÷ 2
+            # Ошибка: X = X ÷ 2, Y = Y × 1.5 (вниз)
+            if correct:
+                self.x = max(0, self.x // 2)
+                self._feedback(f"Босс: X ÷2 → X={self.x}")
+            else:
+                self.x = max(0, self.x // 2)
+                self.y = int(self.y * 1.5)
+                self._feedback(f"Ошибка! X ÷2={self.x}, Y ×1.5={self.y}")
+
+    # -----------------------------------------------------------------------
+    # Разблокировка атак (туториалы)
+    # -----------------------------------------------------------------------
+
+    def _start_unlock(self, attack_type: str):
+        """Запускает туториал для указанной атаки."""
+        self._pending_unlock = attack_type
+        self._unlock_stage   = 1
+        self.answer_buffer   = ""
+        self.error_msg       = ""
+
+        if attack_type == "add":
+            # Фиксированный пример: «Y + 1 = {y+1}», ответ = Y
+            text, ans = gen_tutorial_add_problem(self.y)
+            self.problem_text   = f"[Обучение: Сложение]\n{text}"
+            self.correct_answer = ans
+
+        elif attack_type == "sub":
+            # Пример с текущими значениями: «|X – Y| = ?»
+            text, ans = gen_tutorial_sub_problem(self.x, self.y)
+            self.problem_text   = f"[Обучение: Вычитание]\n{text}"
+            self.correct_answer = ans
+
+        else:
+            # Умножение и деление — случайные примеры (боссы 2–3)
+            from .math_problem import make_problem, _OP_MAP
+            op = _OP_MAP.get(attack_type, "+")
+            text, ans = make_problem(op)
+            self.problem_text   = f"[Обучение: {ATTACK_NAMES[attack_type]}]\n{text}"
+            self.correct_answer = ans
+
+    def _check_unlock_conditions(self):
+        """Проверяет, нужно ли показать туториал для новой атаки."""
+        if not self.sub_unlocked and self.x >= UNLOCK_X_SUB:
+            self._start_unlock("sub")
+            self.phase = Phase.PLAYER_ANSWER
+
+        elif not self.mul_unlocked and self.boss_id >= 2 and self.x >= UNLOCK_X_MUL:
+            self._start_unlock("mul")
+            self.phase = Phase.PLAYER_ANSWER
+
+        elif not self.div_unlocked and self.boss_id >= 3 and self.x >= UNLOCK_X_DIV:
+            self._start_unlock("div")
+            self.phase = Phase.PLAYER_ANSWER
+
+    def _resolve_unlock(self, correct: bool):
+        """Обрабатывает ответ на туториал."""
+        attack = self._pending_unlock
+
+        if correct:
+            setattr(self, f"{attack}_unlocked", True)
+
+            # Особые эффекты туториала сложения:
+            # после успеха Y раскрывается, X становится 2
+            if attack == "add":
+                self.y_revealed = True
+                self.x = 2
+                self._feedback(
+                    f"Атака «{ATTACK_NAMES[attack]}» разблокирована! X = 2, Y = {self.y}"
+                )
+            else:
+                # Туториал вычитания: X не уменьшается
+                self._feedback(f"Атака «{ATTACK_NAMES[attack]}» разблокирована!")
+
+            self._pending_unlock = None
+            self._unlock_stage   = 0
+            self.problem_text    = ""
+            self.answer_buffer   = ""
+            self.error_msg       = ""
+
+            if self.hp_boss > 0 and self.hp_player > 0:
+                self.phase = Phase.PLAYER_CHOOSE
+
+        else:
+            if self._unlock_stage == 1:
+                # Первая ошибка: ещё одна попытка
+                self._unlock_stage = 2
+                self._set_error("Неверно! Попробуй ещё раз.")
+                # Перегенерируем туториал (те же правила)
+                self._regenerate_unlock_problem(attack)
+            else:
+                # Вторая ошибка → смерть, бой заново
+                self.hp_player       = 0
+                self._pending_unlock = None
+                self._unlock_stage   = 0
+                self._check_end()
+
+    def _regenerate_unlock_problem(self, attack_type: str):
+        """Перегенерирует задачу туториала для второй попытки."""
+        self.answer_buffer = ""
+
+        if attack_type == "add":
+            text, ans = gen_tutorial_add_problem(self.y)
+            self.problem_text   = f"[Обучение: Сложение]\n{text}"
+            self.correct_answer = ans
+
+        elif attack_type == "sub":
+            text, ans = gen_tutorial_sub_problem(self.x, self.y)
+            self.problem_text   = f"[Обучение: Вычитание]\n{text}"
+            self.correct_answer = ans
+
+        else:
+            from .math_problem import make_problem, _OP_MAP
+            op = _OP_MAP.get(attack_type, "+")
+            text, ans = make_problem(op)
+            self.problem_text   = f"[Обучение: {ATTACK_NAMES[attack_type]}]\n{text}"
+            self.correct_answer = ans
+
+    # -----------------------------------------------------------------------
+    # Победа / поражение
+    # -----------------------------------------------------------------------
+
+    def _check_end(self) -> bool:
+        if self.hp_boss <= 0:
+            self.victory    = True
+            names = {1: "Внучка повержена!", 2: "Отец повержен!", 3: "Бабушка повержена!"}
+            self.result_msg   = names.get(self.boss_id, "Победа!")
+            self.result_timer = 3.0
+            self.phase        = Phase.RESULT
+            return True
+
+        if self.hp_player <= 0:
+            self.victory      = False
+            self.result_msg   = "Wasted. Попробуй снова."
+            self.result_timer = 3.0
+            self.phase        = Phase.RESULT
+            return True
+
+        return False
 
     def finalize_victory(self) -> int:
-        """
-        Вызвать при победе. Сбрасывает X игрока по правилам.
-        Возвращает новый X.
-        """
-        self.player.x = max(1, self.player.x // 2)
-        return self.player.x
+        """Сбрасывает X после победы (÷2, минимум 1). Возвращает новый X."""
+        self.x = max(1, self.x // 2)
+        return self.x
+
+    # -----------------------------------------------------------------------
+    # Вспомогательные
+    # -----------------------------------------------------------------------
+
+    def _is_unlocked(self, attack: str) -> bool:
+        return getattr(self, f"{attack}_unlocked", False)
+
+    def _validate(self) -> bool:
+        try:
+            return int(self.answer_buffer) == self.correct_answer
+        except ValueError:
+            return False
+
+    def _feedback(self, msg: str):
+        self.feedback_msg   = msg
+        self.feedback_timer = 2.5
+
+    def _set_error(self, msg: str):
+        self.error_msg   = msg
+        self.error_timer = 2.5
