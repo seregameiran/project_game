@@ -19,8 +19,13 @@ class ExploringDialogueState:
     Состояние диалога с NPC.
 
     Показывает диалоговое окно с портретом и текстом.
+    Поддерживает:
+        - обычные линейные реплики
+        - варианты ответа через поле options у текущей реплики
+
     Управление:
-        E / ENTER — следующая реплика / закрыть диалог
+        E / ENTER — следующая реплика / подтвердить выбор
+        ↑ / ↓ или W / S — выбрать вариант ответа
         ESC — выйти из диалога и вернуться в исследование карты
     """
 
@@ -49,9 +54,9 @@ class ExploringDialogueState:
         # Шрифты
         font_path = os.path.join(self.root_dir, "assets", "menu", "Compilance-Sans.ttf")
         self.font = pygame.font.Font(font_path, 26)       # основной текст диалога
-        self.hint_font = pygame.font.Font(font_path, 24)  # подсказка
+        self.hint_font = pygame.font.Font(font_path, 24)  # подсказка (увеличенный)
 
-        # Текущая локация (чтобы вернуться после диалога)
+        # Текущая локация
         self.location_id = 1
 
         # Анимация печати текста
@@ -60,10 +65,24 @@ class ExploringDialogueState:
         self.text_timer = 0.0
         self.text_done = False
 
-        # Кто сейчас говорит (для звука)
+        # Кто сейчас говорит
         self.current_speaker = ""
-        # Если это диалог босса, после полного завершения пометим победу и начнём бой
+        # Если это диалог босса, после полного завершения пометим победу
         self.pending_boss_location = None
+
+        # Состояние выбора ответа
+        self.awaiting_choice = False
+        self.selected_option = 0
+        self.choice_options = []
+
+        # Действие, которое нужно выполнить после показа response-ветки
+        self.post_dialog_action = None
+
+    def _reset_text_animation(self):
+        """Сбрасывает анимацию печати текста для новой реплики."""
+        self.displayed_chars = 0
+        self.text_timer = 0.0
+        self.text_done = False
 
     def start(self, dialog_file, location_id, portrait_paths, is_boss_dialog=False):
         """
@@ -80,11 +99,14 @@ class ExploringDialogueState:
         self.pending_boss_location = int(location_id) if is_boss_dialog else None
         self.lines = []
         self.portraits = {}
+        self.current_speaker = ""
 
-        self.displayed_chars = 0
-        self.text_speed = 30
-        self.text_timer = 0.0
-        self.text_done = False
+        self.awaiting_choice = False
+        self.selected_option = 0
+        self.choice_options = []
+        self.post_dialog_action = None
+
+        self._reset_text_animation()
 
         # Загружаем реплики из JSON
         try:
@@ -103,6 +125,90 @@ class ExploringDialogueState:
             except Exception as e:
                 print(f"Ошибка загрузки портрета {path}: {e}")
 
+    def _perform_dialog_action(self, action):
+        """
+        Выполняет действие, выбранное игроком в диалоге.
+
+        Поддерживаемые действия:
+            - start_battle
+            - decline_battle
+        """
+        self.game.audio.stop_sound(SoundType.DIALOG)
+        self.game.audio.stop_sound(SoundType.DIALOG_BILLY)
+
+        if action == "start_battle":
+            if self.pending_boss_location is not None:
+                boss_id = int(self.pending_boss_location) - 2
+                self.pending_boss_location = None
+
+                battle = self.game.states.get(GameState.BATTLE)
+                if battle:
+                    exploring = self.game.states.get(GameState.EXPLORING)
+                    saved_x = getattr(exploring, "_saved_battle_x", 0)
+                    battle.enter(boss_id, saved_x)
+                    self.game.change_state(GameState.BATTLE)
+                else:
+                    self.game.change_state(GameState.EXPLORING)
+            else:
+                self.game.change_state(GameState.EXPLORING)
+            return
+
+        if action == "decline_battle":
+            self.pending_boss_location = None
+            self.game.change_state(GameState.EXPLORING)
+            return
+
+        # Обычный финал диалога без специальных действий
+        if self.pending_boss_location is not None:
+            boss_id = int(self.pending_boss_location) - 2
+            self.pending_boss_location = None
+
+            battle = self.game.states.get(GameState.BATTLE)
+            if battle:
+                exploring = self.game.states.get(GameState.EXPLORING)
+                saved_x = getattr(exploring, "_saved_battle_x", 0)
+                battle.enter(boss_id, saved_x)
+                self.game.change_state(GameState.BATTLE)
+            else:
+                self.game.change_state(GameState.EXPLORING)
+        else:
+            self.game.change_state(GameState.EXPLORING)
+
+    def _finish_dialogue(self):
+        """Завершает текущий диалог с учётом отложенного действия."""
+        self.game.audio.stop_sound(SoundType.DIALOG)
+        self.game.audio.stop_sound(SoundType.DIALOG_BILLY)
+
+        if self.post_dialog_action is not None:
+            action = self.post_dialog_action
+            self.post_dialog_action = None
+            self._perform_dialog_action(action)
+            return
+
+        self._perform_dialog_action(None)
+
+    def _confirm_selected_option(self):
+        """Подтверждает выбранный вариант ответа."""
+        if not self.choice_options:
+            return
+
+        choice = self.choice_options[self.selected_option]
+        action = choice.get("action")
+        response = choice.get("response") or []
+
+        self.awaiting_choice = False
+        self.selected_option = 0
+        self.choice_options = []
+
+        if response:
+            self.lines = response
+            self.current_index = 0
+            self.post_dialog_action = action
+            self._reset_text_animation()
+        else:
+            self.post_dialog_action = None
+            self._perform_dialog_action(action)
+
     def handle_events(self, events):
         """
         Обработка событий диалога.
@@ -111,50 +217,77 @@ class ExploringDialogueState:
             events: список событий Pygame
         """
         for event in events:
-            if event.type == pygame.KEYDOWN:
-                # Выход по ESC
-                if event.key == pygame.K_ESCAPE:
-                    self.game.audio.stop_sound(SoundType.DIALOG)
-                    self.game.audio.stop_sound(SoundType.DIALOG_BILLY)
-                    self.game.change_state(GameState.EXPLORING)
+            if event.type != pygame.KEYDOWN:
+                continue
+
+            char = event.unicode.lower() if event.unicode else ""
+
+            # Выход по ESC
+            if event.key == pygame.K_ESCAPE:
+                self.game.audio.stop_sound(SoundType.DIALOG)
+                self.game.audio.stop_sound(SoundType.DIALOG_BILLY)
+                self.awaiting_choice = False
+                self.selected_option = 0
+                self.choice_options = []
+                self.post_dialog_action = None
+                self.pending_boss_location = None
+                self.game.change_state(GameState.EXPLORING)
+                return
+
+            # Если открыт выбор ответа — обрабатываем его отдельно
+            if self.awaiting_choice:
+                if event.key in (pygame.K_UP, pygame.K_w) or char == "ц":
+                    self.selected_option = max(0, self.selected_option - 1)
                     return
 
-                # Далее по E или Enter
-                if event.key == pygame.K_e or event.key == pygame.K_RETURN or event.unicode.lower() == "у":
-                    if not self.text_done:
-                        # Показываем весь текст сразу
-                        self.text_done = True
-                        if self.lines and self.current_index < len(self.lines):
-                            self.displayed_chars = len(self.lines[self.current_index].get("text", ""))
-                    else:
-                        # Переходим к следующей реплике
-                        self.current_index += 1
-                        self.displayed_chars = 0
-                        self.text_timer = 0.0
-                        self.text_done = False
+                if event.key in (pygame.K_DOWN, pygame.K_s) or char == "ы":
+                    self.selected_option = min(len(self.choice_options) - 1, self.selected_option + 1)
+                    return
 
-                        if self.current_index >= len(self.lines):
-                            # Диалог завершён
+                if event.key == pygame.K_e or event.key == pygame.K_RETURN or char == "у":
+                    self._confirm_selected_option()
+                    return
+
+                continue
+
+            # Далее по E или Enter
+            if event.key == pygame.K_e or event.key == pygame.K_RETURN or char == "у":
+                if not self.text_done:
+                    # Показываем весь текст сразу
+                    self.text_done = True
+                    if self.lines and self.current_index < len(self.lines):
+                        self.displayed_chars = len(self.lines[self.current_index].get("text", ""))
+                        current_line = self.lines[self.current_index]
+                        options = current_line.get("options") or []
+                        if options:
+                            self.awaiting_choice = True
+                            self.selected_option = 0
+                            self.choice_options = options
                             self.game.audio.stop_sound(SoundType.DIALOG)
                             self.game.audio.stop_sound(SoundType.DIALOG_BILLY)
+                    return
 
-                            if self.pending_boss_location is not None:
-                                # Это был диалог босса — запускаем бой
-                                boss_id = int(self.pending_boss_location) - 2
-                                self.pending_boss_location = None
+                if not self.lines or self.current_index >= len(self.lines):
+                    return
 
-                                battle = self.game.states.get(GameState.BATTLE)
-                                if battle:
-                                    exploring = self.game.states.get(GameState.EXPLORING)
-                                    saved_x = getattr(exploring, '_saved_battle_x', 0)
-                                    battle.enter(boss_id, saved_x)
-                                    self.game.change_state(GameState.BATTLE)
-                                else:
-                                    # Fallback: если BattleState не зарегистрирован
-                                    self.game.change_state(GameState.EXPLORING)
-                            else:
-                                # Обычный диалог с NPC — возврат в исследование
-                                self.game.change_state(GameState.EXPLORING)
+                current_line = self.lines[self.current_index]
+                options = current_line.get("options") or []
+
+                # Если у текущей реплики есть варианты — переходим в режим выбора
+                if options:
+                    self.awaiting_choice = True
+                    self.selected_option = 0
+                    self.choice_options = options
+                    self.game.audio.stop_sound(SoundType.DIALOG)
+                    self.game.audio.stop_sound(SoundType.DIALOG_BILLY)
+                    return
+
+                # Переходим к следующей реплике
+                self.current_index += 1
+                self._reset_text_animation()
+
+                if self.current_index >= len(self.lines):
+                    self._finish_dialogue()
 
     def update(self, dt):
         """Обновляет анимацию печати текста и воспроизводит звуки."""
@@ -168,6 +301,11 @@ class ExploringDialogueState:
         # Обновляем текущего говорящего
         if speaker != self.current_speaker:
             self.current_speaker = speaker
+
+        if self.awaiting_choice:
+            self.game.audio.stop_sound(SoundType.DIALOG)
+            self.game.audio.stop_sound(SoundType.DIALOG_BILLY)
+            return
 
         if not self.text_done:
             self.text_timer += dt
@@ -190,6 +328,12 @@ class ExploringDialogueState:
                     self.game.audio.stop_sound(SoundType.DIALOG)
                 if speaker == "billy":
                     self.game.audio.stop_sound(SoundType.DIALOG_BILLY)
+
+                options = current_line.get("options") or []
+                if options and not self.awaiting_choice:
+                    self.awaiting_choice = True
+                    self.selected_option = 0
+                    self.choice_options = options
         else:
             self.game.audio.stop_sound(SoundType.DIALOG)
             self.game.audio.stop_sound(SoundType.DIALOG_BILLY)
@@ -229,7 +373,7 @@ class ExploringDialogueState:
             portrait_y = h - 160 + (140 - 96) // 2
             screen.blit(portrait, (portrait_x, portrait_y))
 
-        # --- ПОДСКАЗКА "Нажмите ESC, чтобы выйти" ---
+        # --- ПОДСКАЗКА "Нажмите ESC, чтобы выйти" (левый верхний угол окна) ---
         hint_text = "Нажмите ESC, чтобы выйти"
         hint_surf = self.hint_font.render(hint_text, True, (255, 255, 0))
         hint_rect = hint_surf.get_rect(topright=(w - 10, 10))
@@ -248,22 +392,41 @@ class ExploringDialogueState:
         # Разбиваем текст на строки
         max_width = w - 200
         partial_text = text[:self.displayed_chars]
+        if self.awaiting_choice:
+            partial_text = text
+
         words = partial_text.split()
         lines_to_draw = []
-        current_line = ""
+        current_line_text = ""
 
         for word in words:
-            test = current_line + (" " if current_line else "") + word
+            test = current_line_text + (" " if current_line_text else "") + word
             if self.font.size(test)[0] <= max_width:
-                current_line = test
+                current_line_text = test
             else:
-                if current_line:
-                    lines_to_draw.append(current_line)
-                current_line = word
-        if current_line:
-            lines_to_draw.append(current_line)
+                if current_line_text:
+                    lines_to_draw.append(current_line_text)
+                current_line_text = word
+        if current_line_text:
+            lines_to_draw.append(current_line_text)
 
         # Рисуем строки текста
-        for i, l in enumerate(lines_to_draw):
-            surf = self.font.render(l, True, text_color)
+        for i, rendered_line in enumerate(lines_to_draw):
+            surf = self.font.render(rendered_line, True, text_color)
             screen.blit(surf, (40, h - 145 + i * 28))
+
+        # Если открыт выбор — рисуем варианты ответа столбиком
+        if self.awaiting_choice and self.choice_options:
+            options_y = h - 145 + len(lines_to_draw) * 28 + 10
+
+            for i, option in enumerate(self.choice_options):
+                option_text = option.get("text", "")
+                option_color = (255, 255, 0) if i == self.selected_option else (180, 180, 180)
+                prefix = "► " if i == self.selected_option else "  "
+                option_surf = self.font.render(prefix + option_text, True, option_color)
+                screen.blit(option_surf, (40, options_y + i * 28))
+
+            controls_text = "↑/↓ выбрать, E или Enter подтвердить"
+            controls_surf = self.hint_font.render(controls_text, True, (180, 220, 255))
+            controls_rect = controls_surf.get_rect(bottomright=(w - 150, h - 28))
+            screen.blit(controls_surf, controls_rect)
