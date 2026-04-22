@@ -80,6 +80,9 @@ class ExploringDialogueState:
         # Действие, которое нужно выполнить после показа response-ветки
         self.post_dialog_action = None
 
+        # Контекст для возврата к меню выбора после показа response-ветки
+        self.return_choice_context = None
+
     def _reset_text_animation(self):
         """Сбрасывает анимацию печати текста для новой реплики."""
         self.displayed_chars = 0
@@ -106,6 +109,7 @@ class ExploringDialogueState:
         self.selected_option = 0
         self.choice_options = []
         self.post_dialog_action = None
+        self.return_choice_context = None
 
         self._reset_text_animation()
 
@@ -133,6 +137,7 @@ class ExploringDialogueState:
         Поддерживаемые действия:
             - start_battle
             - decline_battle
+            - return_to_choice_menu
         """
         self.game.audio.stop_sound(SoundType.DIALOG)
         self.game.audio.stop_sound(SoundType.DIALOG_BILLY)
@@ -180,6 +185,24 @@ class ExploringDialogueState:
         self.game.audio.stop_sound(SoundType.DIALOG)
         self.game.audio.stop_sound(SoundType.DIALOG_BILLY)
 
+        if self.post_dialog_action == "return_to_choice_menu" and self.return_choice_context:
+            context = self.return_choice_context
+            self.return_choice_context = None
+            self.post_dialog_action = None
+
+            self.lines = context["lines"]
+            self.current_index = context["current_index"]
+            self.awaiting_choice = True
+            self.selected_option = 0
+            self.choice_options = context["choice_options"]
+
+            current_line = self.lines[self.current_index]
+            self.current_speaker = current_line.get("speaker", "")
+            self.displayed_chars = len(current_line.get("text", ""))
+            self.text_timer = 0.0
+            self.text_done = True
+            return
+
         if self.post_dialog_action is not None:
             action = self.post_dialog_action
             self.post_dialog_action = None
@@ -202,6 +225,14 @@ class ExploringDialogueState:
         self.choice_options = []
 
         if response:
+            if action == "return_to_choice_menu":
+                self.return_choice_context = {
+                    "lines": self.lines,
+                    "current_index": self.current_index,
+                    "choice_options": list(choice.get("options", []) for choice in []),
+                }
+                self.return_choice_context["choice_options"] = self.lines[self.current_index].get("options") or []
+
             self.lines = response
             self.current_index = 0
             self.post_dialog_action = action
@@ -418,16 +449,17 @@ class ExploringDialogueState:
 
         # Если открыт выбор — рисуем варианты ответа столбиком
         if self.awaiting_choice and self.choice_options:
-            options_y = h - 145 + len(lines_to_draw) * 28 + 10
+            option_line_height = 24
+            options_y = h - 145 + len(lines_to_draw) * 24 + 4
 
             for i, option in enumerate(self.choice_options):
                 option_text = option.get("text", "")
                 option_color = (255, 255, 0) if i == self.selected_option else (180, 180, 180)
                 prefix = "► " if i == self.selected_option else "  "
                 option_surf = self.font.render(prefix + option_text, True, option_color)
-                screen.blit(option_surf, (40, options_y + i * 28))
+                screen.blit(option_surf, (40, options_y + i * option_line_height))
 
-            controls_text = "↑/↓ выбрать, E или Enter подтвердить"
+            controls_text = "W/S или ↑/↓ выбрать, E или Enter подтвердить"
             controls_surf = self.hint_font.render(controls_text, True, (180, 220, 255))
-            controls_rect = controls_surf.get_rect(bottomright=(w - 150, h - 28))
+            controls_rect = controls_surf.get_rect(bottomright=(w - 30, h - 18))
             screen.blit(controls_surf, controls_rect)
