@@ -52,8 +52,8 @@ class BattleState:
         self.hud.load(boss_id)
 
         print(f"[BATTLE] Бой начат. Босс #{boss_id}, "
-              f"HP_player={self.sys.hp_player}, HP_boss={self.sys.hp_boss}, "
-              f"X={self.sys.x}, Y={self.sys.y}")
+              f"HP_player = {self.sys.hp_player}, HP_boss = {self.sys.hp_boss}, "
+              f"X = {self.sys.x}, Y = {self.sys.y}")
 
     # -----------------------------------------------------------------------
     # Обработка событий

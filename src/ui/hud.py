@@ -183,7 +183,7 @@ class BattleHUD:
             f"HP: {max(0, sys.hp_boss)}/{BOSS_HP_START.get(sys.boss_id, 60)}",
             True, COLOR_WHITE)
         screen.blit(hp_txt, (bx, by - 18))
-        y_label = f"Уровень Y: {sys.y}" if sys.y_revealed else "Уровень Y: ?"
+        y_label = f"Урон Y: {sys.y}" if sys.y_revealed else "Урон Y: ?"
         y_txt = self.font_mid.render(y_label, True, (100, 180, 255))
         screen.blit(y_txt, (boss_box.x + 20, boss_box.y + 70))
 
@@ -197,7 +197,7 @@ class BattleHUD:
             f"HP: {max(0, sys.hp_player)}/{PLAYER_HP_START.get(sys.boss_id, 80)}",
             True, COLOR_WHITE)
         screen.blit(hp_txt2, (px2, py2 - 18))
-        x_txt = self.font_mid.render(f"Уровень X: {sys.x}", True, COLOR_YELLOW)
+        x_txt = self.font_mid.render(f"Урон X: {sys.x}", True, COLOR_YELLOW)
         screen.blit(x_txt, (player_box.x + 120, player_box.y + 70))
 
         # Центральная зона: пример или подсказка выбора
