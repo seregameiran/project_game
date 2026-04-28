@@ -250,14 +250,14 @@ class BattleSystem:
             # X = X + 1 (×2 если бафф), HP босса -= новый X
             self.x += 1 * mult
             self.hp_boss -= self.x
-            self._feedback(f"+{mult} к X! HP босса -{self.x}")
+            self._feedback(f"+{mult} к X! HP босса - {self.x}")
 
         elif attack_type == "sub":
             # Y = Y – 2 (×2 если бафф), HP босса -= 2 (×2 если бафф)
             dmg = 2 * mult
             self.y = max(0, self.y - dmg)
             self.hp_boss -= dmg
-            self._feedback(f"Y босса -{dmg}, HP босса -{dmg}")
+            self._feedback(f"Y босса - {dmg}, HP босса - {dmg}")
 
         elif attack_type == "mul":
             # Бафф: следующая атака ×2
@@ -283,7 +283,7 @@ class BattleSystem:
             self._boss_next_mul2 = False
             dmg = max(1, (self.y * mult) // divisor)
             self.hp_player -= dmg
-            self._feedback(f"Босс: базовый удар -{dmg} HP")
+            self._feedback(f"Босс: базовый удар - {dmg} HP")
             self._check_end()
         else:
             self._boss_attack = attack
@@ -361,16 +361,16 @@ class BattleSystem:
             n = self._boss_n
             delta = n if correct else n * 2
             self.y += delta
-            self._feedback(f"{'Y' if correct else 'Ошибка! Y'} +{delta} → Y={self.y}")
+            self._feedback(f"{'Y' if correct else 'Ошибка! Y'} + {delta} → Y = {self.y}")
 
         elif attack == "sub":
             # Правильно: X -= 2; Ошибка: X = X // 2
             if correct:
                 self.x = max(0, self.x - 2)
-                self._feedback(f"Босс: X -2 → X={self.x}")
+                self._feedback(f"Босс: X - 2 → X = {self.x}")
             else:
                 self.x = max(0, self.x // 2)
-                self._feedback(f"Ошибка! X ÷2 → X={self.x}")
+                self._feedback(f"Ошибка! X ÷ 2 → X = {self.x}")
 
         elif attack == "mul":
             # Правильно: следующий удар босса ×2
@@ -381,18 +381,18 @@ class BattleSystem:
             else:
                 self.x = max(0, int(self.x / 1.5))
                 self.y = int(self.y * 2)
-                self._feedback(f"Ошибка! X ÷1.5={self.x}, Y ×2={self.y}")
+                self._feedback(f"Ошибка! X ÷ 1.5 = {self.x}, Y × 2 = {self.y}")
 
         elif attack == "div":
             # Правильно: X = X ÷ 2
             # Ошибка: X = X ÷ 2, Y = Y × 1.5 (вниз)
             if correct:
                 self.x = max(0, self.x // 2)
-                self._feedback(f"Босс: X ÷2 → X={self.x}")
+                self._feedback(f"Босс: X ÷ 2 → X = {self.x}")
             else:
                 self.x = max(0, self.x // 2)
                 self.y = int(self.y * 1.5)
-                self._feedback(f"Ошибка! X ÷2={self.x}, Y ×1.5={self.y}")
+                self._feedback(f"Ошибка! X ÷ 2 = {self.x}, Y × 1.5 = {self.y}")
 
     # -----------------------------------------------------------------------
     # Разблокировка атак (туториалы)
