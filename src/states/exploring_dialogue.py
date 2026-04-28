@@ -87,6 +87,15 @@ class ExploringDialogueState:
         self.text_timer = 0.0
         self.text_done = False
 
+    def _load_portraits(self, portrait_paths):
+        """Загружает портреты говорящих."""
+        for speaker, path in portrait_paths.items():
+            try:
+                img = pygame.image.load(path).convert_alpha()
+                self.portraits[speaker] = pygame.transform.scale(img, (96, 96))
+            except Exception as e:
+                print(f"Ошибка загрузки портрета {path}: {e}")
+
     def start(self, dialog_file, location_id, portrait_paths, is_boss_dialog=False):
         """
         Запускает диалог из JSON файла.
@@ -112,6 +121,13 @@ class ExploringDialogueState:
 
         self._reset_text_animation()
 
+        # Если босс уже побеждён — показываем короткий диалог вместо полного
+        if is_boss_dialog and self.game.is_boss_defeated(int(location_id)):
+            self.pending_boss_location = None  # бой не запускать
+            self.lines = self._make_defeated_dialog(dialog_file)
+            self._load_portraits(portrait_paths)
+            return
+
         # Загружаем реплики из JSON
         try:
             with open(dialog_file, "r", encoding="utf-8") as f:
@@ -121,13 +137,8 @@ class ExploringDialogueState:
             self.lines = []
             return
 
-        # Загружаем портреты
-        for speaker, path in portrait_paths.items():
-            try:
-                img = pygame.image.load(path).convert_alpha()
-                self.portraits[speaker] = pygame.transform.scale(img, (96, 96))
-            except Exception as e:
-                print(f"Ошибка загрузки портрета {path}: {e}")
+        self._load_portraits(portrait_paths)
+
 
     def _perform_dialog_action(self, action):
         """
@@ -209,6 +220,22 @@ class ExploringDialogueState:
             return
 
         self._perform_dialog_action(None)
+
+    @staticmethod
+    def _make_defeated_dialog(dialog_file: str) -> list:
+        """Загружает диалог побеждённого босса из JSON рядом с основным диалогом."""
+        # boss-1.json → boss-1-defeated.json
+        base, ext = os.path.splitext(dialog_file)
+        defeated_file = f"{base}-defeated{ext}"
+
+        try:
+            with open(defeated_file, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Ошибка загрузки defeated-диалога {defeated_file}: {e}")
+            # Фоллбэк если файл не найден
+            return [{"speaker": "npc", "text": "Экзамен уже сдан.", "color": "red"}]
+        
 
     def _confirm_selected_option(self):
         """Подтверждает выбранный вариант ответа."""
