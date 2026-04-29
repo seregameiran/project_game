@@ -221,6 +221,8 @@ class BattleHUD:
 
         self._draw_attack_icons(screen, sys, info_box)
 
+        self._draw_battle_log(screen, sys, W, H)
+
         # Подсказка ESC
         esc = self.font_hint.render("ESC — выйти из боя", True, COLOR_GRAY)
         screen.blit(esc, (info_box.right - esc.get_width() - 20,
@@ -314,6 +316,43 @@ class BattleHUD:
         sub   = self.font_small.render("Возврат через секунду...", True, COLOR_GRAY)
         screen.blit(main, (W // 2 - main.get_width() // 2, H // 2 - 30))
         screen.blit(sub,  (W // 2 - sub.get_width()  // 2, H // 2 + 20))
+
+
+    def _draw_battle_log(self, screen, sys, W, H):
+        log = sys.battle_log
+        if not log:
+            return
+
+        log_w = 220
+        log_x = 22
+        log_y = H - 178
+        log_h = 156
+
+        # Фон
+        pygame.draw.rect(screen, (0, 0, 0), (log_x, log_y, log_w, log_h), border_radius=8)
+        pygame.draw.rect(screen, (80, 80, 120), (log_x, log_y, log_w, log_h), 1, border_radius=8)
+
+        # Заголовок
+        title = self.font_hint.render("Ход боя", True, (200, 200, 255))
+        screen.blit(title, (log_x + log_w // 2 - title.get_width() // 2, log_y + 5))
+
+        # Строки лога
+        line_h = 16
+        max_lines = (log_h - 25) // line_h
+        visible = log[-max_lines:]
+
+        for i, entry in enumerate(visible):
+            if entry.startswith("Билли"):
+                color = (255, 255, 100)
+            elif entry.startswith("Босс"):
+                color = (255, 120, 120)
+            else:
+                color = (200, 200, 200)
+
+            surf = self.font_hint.render(entry, True, color)
+            if surf.get_width() > log_w - 16:
+                surf = pygame.transform.scale(surf, (log_w - 16, surf.get_height()))
+            screen.blit(surf, (log_x + 8, log_y + 25 + i * line_h))
 
     # -----------------------------------------------------------------------
     # Утилита

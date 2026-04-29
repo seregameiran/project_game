@@ -49,6 +49,7 @@ class Phase:
     PLAYER_CHOOSE = "player_choose"   # игрок выбирает атаку (1–4)
     PLAYER_ANSWER = "player_answer"   # игрок вводит ответ на туториал
     BOSS_ANSWER   = "boss_answer"     # игрок вводит ответ на атаку босса
+    BOSS_DELAY    = "boss_delay"      # задержка перед ходом босса
     RESULT        = "result"          # финальная заставка победы / поражения
 
 
@@ -117,6 +118,13 @@ class BattleSystem:
         self.phase   = Phase.PLAYER_CHOOSE
         self.victory = False
 
+        # Лог боя — последние записи
+        self.battle_log: list[str] = []
+        self.MAX_LOG = 10  # сколько строк хранить
+
+        # Задержка перед ходом босса
+        self._boss_delay_timer = 0.0
+        BOSS_DELAY_SECONDS = 1.0
     # -----------------------------------------------------------------------
     # Инициализация
     # -----------------------------------------------------------------------
@@ -193,6 +201,23 @@ class BattleSystem:
         if self.phase == Phase.RESULT and self.result_timer > 0:
             self.result_timer -= dt
 
+        # Задержка перед ходом босса
+        if self.phase == Phase.BOSS_DELAY:
+            self._boss_delay_timer -= dt
+            if self._boss_delay_timer <= 0:
+                self.phase = Phase.PLAYER_CHOOSE
+                self._do_boss_turn()
+
+    # -----------------------------------------------------------------------
+    # записи в лог
+    # -----------------------------------------------------------------------
+
+    def _log(self, msg: str):
+        """Добавляет запись в лог боя."""
+        self.battle_log.append(msg)
+        if len(self.battle_log) > self.MAX_LOG:
+            self.battle_log.pop(0)
+
     # -----------------------------------------------------------------------
     # Ввод: атака игрока (клавиши 1–4)
     # -----------------------------------------------------------------------
@@ -210,7 +235,9 @@ class BattleSystem:
         if not self._check_end():
             self._check_unlock_conditions()
             if self.phase == Phase.PLAYER_CHOOSE:
-                self._do_boss_turn()
+                # Запускаем задержку вместо мгновенного хода босса
+                self.phase = Phase.BOSS_DELAY
+                self._boss_delay_timer = 1.0
         return True
 
     # -----------------------------------------------------------------------
@@ -250,24 +277,32 @@ class BattleSystem:
             # X = X + 1 (×2 если бафф), HP босса -= новый X
             self.x += 1 * mult
             self.hp_boss -= self.x
-            self._feedback(f"+{mult} к X! HP босса - {self.x}")
+            msg = f"Билли: Сложение +{mult*1} X, урон {self.x}"
+            self._feedback(msg)
+            self._log(msg)
 
         elif attack_type == "sub":
             # Y = Y – 2 (×2 если бафф), HP босса -= 2 (×2 если бафф)
             dmg = 2 * mult
             self.y = max(0, self.y - dmg)
             self.hp_boss -= dmg
-            self._feedback(f"Y босса - {dmg}, HP босса - {dmg}")
+            msg = f"Билли: Вычитание Y-{dmg}, урон {dmg}"
+            self._feedback(msg)
+            self._log(msg)
 
         elif attack_type == "mul":
             # Бафф: следующая атака ×2
             self.mul_next_double = True
-            self._feedback("Следующая атака удвоена!")
+            msg = "Билли: Умножение — след. атака ×2"
+            self._feedback(msg)
+            self._log(msg)
 
         elif attack_type == "div":
             # Бафф: следующий удар босса ÷2
             self.div_next_half = True
-            self._feedback("Следующий удар босса ослаблен!")
+            msg = "Билли: Деление — след. удар босса ÷2"
+            self._feedback(msg)
+            self._log(msg)
 
     # -----------------------------------------------------------------------
     # Ход босса
@@ -283,7 +318,9 @@ class BattleSystem:
             self._boss_next_mul2 = False
             dmg = max(1, (self.y * mult) // divisor)
             self.hp_player -= dmg
-            self._feedback(f"Босс: базовый удар - {dmg} HP")
+            msg = f"Босс: базовый удар -{dmg} HP"
+            self._feedback(msg)
+            self._log(msg)
             self._check_end()
         else:
             self._boss_attack = attack
@@ -361,27 +398,33 @@ class BattleSystem:
             n = self._boss_n
             delta = n if correct else n * 2
             self.y += delta
-            self._feedback(f"{'Y' if correct else 'Ошибка! Y'} + {delta} → Y = {self.y}")
+            msg = f"Босс: Y+{delta} → Y={self.y}" + ("" if correct else " (ошибка!)")
+            self._feedback(msg)
+            self._log(msg)
 
         elif attack == "sub":
             # Правильно: X -= 2; Ошибка: X = X // 2
             if correct:
                 self.x = max(0, self.x - 2)
-                self._feedback(f"Босс: X - 2 → X = {self.x}")
+                msg = f"Босс: X-2 → X={self.x}"
             else:
                 self.x = max(0, self.x // 2)
-                self._feedback(f"Ошибка! X ÷ 2 → X = {self.x}")
+                msg = f"Босс: X÷2 → X={self.x} (ошибка!)"
+            self._feedback(msg)
+            self._log(msg)
 
         elif attack == "mul":
             # Правильно: следующий удар босса ×2
             # Ошибка: X = X ÷ 1.5 (вверх), Y = Y × 2
             if correct:
                 self._boss_next_mul2 = True
-                self._feedback("Босс: следующий удар ×2!")
+                msg = "Босс: след. удар ×2!"
             else:
                 self.x = max(0, int(self.x / 1.5))
                 self.y = int(self.y * 2)
-                self._feedback(f"Ошибка! X ÷ 1.5 = {self.x}, Y × 2 = {self.y}")
+                msg = f"Босс: X÷2={self.x}, Y×1.5={self.y} (ошибка!)"
+            self._feedback(msg)
+            self._log(msg)
 
         elif attack == "div":
             # Правильно: X = X ÷ 2
