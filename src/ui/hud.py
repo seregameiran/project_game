@@ -70,14 +70,16 @@ class BattleHUD:
         Загружает шрифты и спрайты для указанного boss_id.
         Шрифты грузятся один раз, спрайт босса — при смене boss_id.
         """
+    def load(self, boss_id: int):
         if not self._loaded:
             self._load_fonts()
-            self._load_battle_bg()
-            self._load_player_sprite()
+            self._load_battle_bg(boss_id)  # передаём boss_id
+            self._load_player_sprite(boss_id)
             self._loaded = True
 
         if self._loaded_boss_id != boss_id:
             self._load_boss_sprite(boss_id)
+            self._load_battle_bg(boss_id)  # перегружаем фон при смене босса
             self._loaded_boss_id = boss_id
 
     def _load_fonts(self):
@@ -94,8 +96,11 @@ class BattleHUD:
         self.font_small = f(20)
         self.font_hint  = f(18)
 
-    def _load_battle_bg(self):
-        path = os.path.join(self.root_dir, "assets", "location3", "battle_bg.png")
+    def _load_battle_bg(self, boss_id: int):
+        """Загружает фон боя для конкретного босса."""
+        locations = {1: "location3", 2: "location4", 3: "location5"}
+        loc = locations.get(boss_id, "location3")
+        path = os.path.join(self.root_dir, "assets", loc, "battle_bg.png")
         try:
             if os.path.exists(path):
                 img = pygame.image.load(path).convert()
@@ -103,8 +108,10 @@ class BattleHUD:
         except Exception as e:
             print(f"[HUD] Не удалось загрузить фон боя: {e}")
 
-    def _load_player_sprite(self):
-        path = os.path.join(self.root_dir, "assets", "location3", "Billy-Head.png")
+    def _load_player_sprite(self, boss_id: int):
+        locations = {1: "location3", 2: "location4", 3: "location5"}
+        loc = locations.get(boss_id, "location3")
+        path = os.path.join(self.root_dir, "assets", loc, "Billy-Head.png")
         try:
             if os.path.exists(path):
                 img = pygame.image.load(path).convert_alpha()
