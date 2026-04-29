@@ -40,6 +40,9 @@ BOSS_SPRITE_NAMES = {
     3: ("location5", "Boss-3-Head.png"),
 }
 
+# Ширина лога — используется и в draw(), и в _draw_battle_log()
+_LOG_W = 270
+
 
 class BattleHUD:
     """
@@ -70,16 +73,15 @@ class BattleHUD:
         Загружает шрифты и спрайты для указанного boss_id.
         Шрифты грузятся один раз, спрайт босса — при смене boss_id.
         """
-    def load(self, boss_id: int):
         if not self._loaded:
             self._load_fonts()
-            self._load_battle_bg(boss_id)  # передаём boss_id
+            self._load_battle_bg(boss_id)
             self._load_player_sprite(boss_id)
             self._loaded = True
 
         if self._loaded_boss_id != boss_id:
             self._load_boss_sprite(boss_id)
-            self._load_battle_bg(boss_id)  # перегружаем фон при смене босса
+            self._load_battle_bg(boss_id)
             self._loaded_boss_id = boss_id
 
     def _load_fonts(self):
@@ -162,12 +164,12 @@ class BattleHUD:
         pygame.draw.rect(screen, COLOR_BLACK, player_box, border_radius=10)
         pygame.draw.rect(screen, COLOR_WHITE, player_box, 2, border_radius=10)
 
-        # Имена над прямоугольниками
+        # --- Имена ВНУТРИ прямоугольников (вверху по центру) ---
         boss_name = BOSS_DISPLAY_NAMES.get(sys.boss_id, "Босс")
         self._blit_centered(screen, self.font_mid, boss_name, COLOR_YELLOW,
-                            boss_box.centerx, boss_box.y - 22)
+                            boss_box.centerx, boss_box.y + 10)
         self._blit_centered(screen, self.font_mid, "Билли", COLOR_YELLOW,
-                            player_box.centerx, player_box.y - 22)
+                            player_box.centerx, player_box.y + 10)
 
         # Спрайты
         if self.boss_sprite:
@@ -180,9 +182,9 @@ class BattleHUD:
             py = player_box.y + (140 - self.player_sprite.get_height()) // 2
             screen.blit(self.player_sprite, (px, py))
 
-        # HP и параметры босса
+        # HP и параметры босса (сдвинуты вниз, чтобы не перекрывать имя)
         bx = boss_box.x + 20
-        by = boss_box.y + 40
+        by = boss_box.y + 55
         self._draw_hp_bar(screen, bx, by, 100, 18,
                           sys.hp_boss, BOSS_HP_START.get(sys.boss_id, 60),
                           COLOR_HP_BOSS, COLOR_HP_BOSS_BG)
@@ -192,11 +194,11 @@ class BattleHUD:
         screen.blit(hp_txt, (bx, by - 18))
         y_label = f"Урон Y: {sys.y}" if sys.y_revealed else "Урон Y: ?"
         y_txt = self.font_mid.render(y_label, True, (100, 180, 255))
-        screen.blit(y_txt, (boss_box.x + 20, boss_box.y + 70))
+        screen.blit(y_txt, (boss_box.x + 20, boss_box.y + 85))
 
-        # HP и параметры игрока
+        # HP и параметры игрока (сдвинуты вниз, чтобы не перекрывать имя)
         px2 = player_box.x + 120
-        py2 = player_box.y + 40
+        py2 = player_box.y + 55
         self._draw_hp_bar(screen, px2, py2, 100, 18,
                           sys.hp_player, PLAYER_HP_START.get(sys.boss_id, 80),
                           COLOR_HP_GREEN, COLOR_HP_BG)
@@ -205,21 +207,37 @@ class BattleHUD:
             True, COLOR_WHITE)
         screen.blit(hp_txt2, (px2, py2 - 18))
         x_txt = self.font_mid.render(f"Урон X: {sys.x}", True, COLOR_YELLOW)
-        screen.blit(x_txt, (player_box.x + 120, player_box.y + 70))
+        screen.blit(x_txt, (player_box.x + 120, player_box.y + 85))
 
         # Центральная зона: пример или подсказка выбора
         if sys.problem_text:
             self._draw_problem(screen, W, H, sys)
         elif sys.phase == Phase.PLAYER_CHOOSE:
+            # Рамочка как у задачи
+            box_w, box_h = 300, 60
+            box_x = W // 2 - box_w // 2
+            box_y = H // 2 - box_h // 2
+
+            s = pygame.Surface((box_w, box_h), pygame.SRCALPHA)
+            s.fill((10, 10, 30, 230))
+            screen.blit(s, (box_x, box_y))
+            pygame.draw.rect(screen, (80, 80, 160),
+                             (box_x, box_y, box_w, box_h), 2, border_radius=8)
+
             t = self.font_mid.render("Выбери атаку!", True, COLOR_YELLOW)
-            screen.blit(t, (W // 2 - t.get_width() // 2, H // 2 - 30))
+            screen.blit(t, (box_x + box_w // 2 - t.get_width() // 2,
+                            box_y + box_h // 2 - t.get_height() // 2))
 
         # Нижняя панель
         info_box = pygame.Rect(20, H - 180, W - 40, 160)
         pygame.draw.rect(screen, COLOR_BLACK, info_box, border_radius=10)
         pygame.draw.rect(screen, COLOR_WHITE, info_box, 2, border_radius=10)
 
-        self._draw_attack_icons(screen, sys, info_box)
+        # Центр правой части info_box (справа от лога)
+        log_end_x  = info_box.x + _LOG_W + 10
+        content_cx = (log_end_x + info_box.right) // 2 - 20
+
+        self._draw_attack_icons(screen, sys, info_box, content_cx)
 
         self._draw_battle_log(screen, sys, W, H)
 
@@ -228,15 +246,15 @@ class BattleHUD:
         screen.blit(esc, (info_box.right - esc.get_width() - 20,
                           info_box.bottom - 28))
 
-        # Сообщение фидбека (зелёное)
+        # Сообщение фидбека (зелёное) — по центру правой части
         if sys.feedback_msg:
             s = self.font_mid.render(sys.feedback_msg, True, COLOR_GREEN)
-            screen.blit(s, (info_box.centerx - s.get_width() // 2, info_box.y + 15))
+            screen.blit(s, (content_cx - s.get_width() // 2, info_box.y + 15))
 
-        # Сообщение ошибки (красное)
+        # Сообщение ошибки (красное) — слева, сразу после лога
         if sys.error_msg:
             s = self.font_mid.render(sys.error_msg, True, COLOR_RED)
-            screen.blit(s, (info_box.centerx - s.get_width() // 2, info_box.y + 50))
+            screen.blit(s, (log_end_x + 10, info_box.y + 50))
 
         # Финальный оверлей
         if sys.phase == Phase.RESULT and sys.result_msg:
@@ -253,7 +271,7 @@ class BattleHUD:
         pygame.draw.rect(screen, (80, 80, 80), (x, y, w, h), 1, border_radius=4)
 
     def _draw_attack_icons(self, screen, sys: "BattleSystem",
-                           info_box: pygame.Rect):
+                           info_box: pygame.Rect, content_cx: int):
         slots = [
             ("1", "add", "Сложение"),
             ("2", "sub", "Вычитание"),
@@ -264,14 +282,26 @@ class BattleHUD:
         if not available:
             return
 
-        slot_w  = 110
-        start_x = info_box.centerx - (len(available) * slot_w) // 2
-        sy      = info_box.bottom - 50
+        slot_w = 110
+        # Область справа от лога, но не доезжаем до надписи ESC
+        log_end_x = info_box.x + _LOG_W + 10
+        right_limit = info_box.right - 100  # резерв под "ESC — выйти из боя"
+
+        # Доступная ширина под иконки
+        avail_width = right_limit - log_end_x
+        # Центр доступной области
+        area_cx = log_end_x + avail_width // 2
+
+        start_x = area_cx - (len(available) * slot_w) // 2
+        sy = info_box.bottom - 50
 
         for i, (key, att, name) in enumerate(available):
-            sx    = start_x + i * slot_w
+            sx = start_x + i * slot_w
+            # Не выходим за right_limit
+            if sx + 100 > right_limit:
+                break
             active = sys.phase == Phase.PLAYER_CHOOSE
-            bg    = (50, 50, 80) if active else (30, 30, 50)
+            bg = (50, 50, 80) if active else (30, 30, 50)
             pygame.draw.rect(screen, bg,        (sx, sy, 100, 40), border_radius=6)
             pygame.draw.rect(screen, (80,80,120),(sx, sy, 100, 40), 1, border_radius=6)
 
@@ -323,7 +353,7 @@ class BattleHUD:
         if not log:
             return
 
-        log_w = 220
+        log_w = _LOG_W   # расширенный лог
         log_x = 22
         log_y = H - 178
         log_h = 156
