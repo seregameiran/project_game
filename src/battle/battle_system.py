@@ -63,9 +63,10 @@ class BattleSystem:
     BattleState читает публичные поля и вызывает методы on_*.
     """
 
-    def __init__(self, boss_id: int, saved_x: int = 0):
+    def __init__(self, boss_id: int, saved_x: int = 0, saved_unlocks: dict = None):
         self.boss_id  = int(boss_id)
         self.saved_x  = saved_x
+        self.saved_unlocks = saved_unlocks or {}
 
         # Игровые параметры
         self.hp_player    = 0
@@ -155,10 +156,10 @@ class BattleSystem:
 
         # Разблокировки: у первого босса всё с нуля.
         # У последующих — сохранённый X мог уже превысить пороги.
-        self.add_unlocked = False
-        self.sub_unlocked = (self.x >= UNLOCK_X_SUB)
-        self.mul_unlocked = (self.boss_id >= 2 and self.x >= UNLOCK_X_MUL)
-        self.div_unlocked = (self.boss_id >= 3 and self.x >= UNLOCK_X_DIV)
+        self.add_unlocked = self.saved_unlocks.get("add", False)
+        self.sub_unlocked = self.saved_unlocks.get("sub", False) or (self.x >= UNLOCK_X_SUB)
+        self.mul_unlocked = self.saved_unlocks.get("mul", False) or (self.boss_id >= 2 and self.x >= UNLOCK_X_MUL)
+        self.div_unlocked = self.saved_unlocks.get("div", False) or (self.boss_id >= 3 and self.x >= UNLOCK_X_DIV)
 
         self._pending_unlock = None
         self._unlock_stage   = 0

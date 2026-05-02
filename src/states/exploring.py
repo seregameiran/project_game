@@ -94,6 +94,10 @@ class ExploringState:
         # Режим разработчика: разрешает переходы без убийства босса
         self.dev_mode = False
 
+        #Сохранение прогресса боссов
+        self._saved_battle_x = 0
+        self._saved_unlocks = {}
+
     def load_location(self, location_id):
         """
         Загружает карту, создаёт игрока и камеру для указанной локации.

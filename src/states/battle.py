@@ -46,8 +46,8 @@ class BattleState:
     # Вход в состояние
     # -----------------------------------------------------------------------
 
-    def enter(self, boss_id: int, saved_x: int = 0):
-        self.sys = BattleSystem(boss_id=boss_id, saved_x=saved_x)
+    def enter(self, boss_id: int, saved_x: int = 0, saved_unlocks: dict = None):
+        self.sys = BattleSystem(boss_id=boss_id, saved_x=saved_x, saved_unlocks=saved_unlocks)
         self.sys.enter()
         self.hud.load(boss_id)
 
@@ -142,6 +142,12 @@ class BattleState:
             exploring = self.game.states.get(GameState.EXPLORING)
             if exploring:
                 exploring._saved_battle_x = new_x
+                exploring._saved_unlocks = {
+                    "add": sys.add_unlocked,
+                    "sub": sys.sub_unlocked,
+                    "mul": sys.mul_unlocked,
+                    "div": sys.div_unlocked,
+                }
 
             self.game.audio.play_sound(SoundType.VICTORY)
             self.game.audio.play_music(MusicTrack.EXPLORING)
