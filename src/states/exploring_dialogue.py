@@ -178,7 +178,8 @@ class ExploringDialogueState:
                 if battle:
                     exploring = self.game.states.get(GameState.EXPLORING)
                     saved_x = getattr(exploring, "_saved_battle_x", 0)
-                    battle.enter(boss_id, saved_x)
+                    saved_unlocks = getattr(exploring, "_saved_unlocks", {})
+                    battle.enter(boss_id, saved_x, saved_unlocks)
                     self.game.change_state(GameState.BATTLE)
                 else:
                     self.game.change_state(GameState.EXPLORING)
@@ -200,7 +201,8 @@ class ExploringDialogueState:
             if battle:
                 exploring = self.game.states.get(GameState.EXPLORING)
                 saved_x = getattr(exploring, "_saved_battle_x", 0)
-                battle.enter(boss_id, saved_x)
+                saved_unlocks = getattr(exploring, "_saved_unlocks", {})
+                battle.enter(boss_id, saved_x, saved_unlocks)
                 self.game.change_state(GameState.BATTLE)
             else:
                 self.game.change_state(GameState.EXPLORING)

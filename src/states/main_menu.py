@@ -19,7 +19,6 @@ from src.game_state import GameState
 from src.core.audio_manager import SoundType
 
 
-
 class MainMenuState:
     """
     Состояние главного меню.
@@ -29,7 +28,8 @@ class MainMenuState:
 
     Пункты меню:
         0. "Начать игру" - переход в состояние EXPLORING (карта)
-        1. "Выйти"       - завершение игры
+        1. "Звук: Вкл/Выкл" - переключение звука
+        2. "Выйти"       - завершение игры
 
     Анимации:
         - Fade-in: меню плавно появляется из чёрного экрана
@@ -64,7 +64,7 @@ class MainMenuState:
 
         Аргументы:
             game: ссылка на главный объект Game
-                  (для доступа к change_state, running и virtual_screen)
+                  (для доступа к change_state, running, virtual_screen и audio)
         """
         self.game = game
 
@@ -89,7 +89,7 @@ class MainMenuState:
         self._font_cache: dict = {}
 
         # Список пунктов меню
-        self.menu_items = ["Начать игру", "Выйти"]
+        self.menu_items = ["Начать игру", "Звук", "Выйти"]
 
         # Индекс выбранного пункта (0 — первый пункт)
         self.selected = 0
@@ -110,6 +110,7 @@ class MainMenuState:
         # "Начать игру" — выезжает справа (положительное смещение)
         # "Выйти"       — выезжает слева (отрицательное смещение)
         self.start_game_offset = self.ITEM_SLIDE_DIST
+        self.sound_offset = 0  # звук появляется по центру
         self.exit_offset       = -self.ITEM_SLIDE_DIST
 
         # Поверхность для fade-in затемнения (чёрный экран в начале)
@@ -157,6 +158,13 @@ class MainMenuState:
             self._font_cache[size] = pygame.font.Font(self.font_path, size)
         return self._font_cache[size]
 
+    def _get_sound_status_text(self) -> str:
+        """Возвращает текст статуса звука для отображения в меню."""
+        if self.game.audio.enabled:
+            return "Звук: Вкл"
+        else:
+            return "Звук: Выкл"
+
     def handle_events(self, events):
         """
         Обработка событий в главном меню.
@@ -203,6 +211,11 @@ class MainMenuState:
                         self.game.reset_game()
                         self.game.change_state(GameState.EXPLORING)
                     elif self.selected == 1:
+                        # "Звук" — переключаем звук
+                        self.game.audio.toggle_mute()
+                        # Обновляем текст пункта меню (меняется статус звука)
+                        self.menu_items[1] = self._get_sound_status_text()
+                    elif self.selected == 2:
                         # "Выйти" — завершаем игру
                         self.game.running = False
 
@@ -233,6 +246,7 @@ class MainMenuState:
 
         # Пункты меню выезжают с разных сторон: от ±ITEM_SLIDE_DIST до 0
         self.start_game_offset = int(self.ITEM_SLIDE_DIST  * (1.0 - self.appear_progress))
+        self.sound_offset = 0  # пункт "Звук" появляется по центру
         self.exit_offset       = int(-self.ITEM_SLIDE_DIST * (1.0 - self.appear_progress))
 
         # Плавно меняем размер шрифта для каждого пункта меню
@@ -255,6 +269,7 @@ class MainMenuState:
             3. Заголовок "Billy's Adventure" с анимацией падения сверху
             4. Пункты меню с анимацией выезжания и изменения размера:
                - "Начать игру" — выезжает справа налево
+               - "Звук: Вкл/Выкл" — появляется по центру
                - "Выйти"       — выезжает слева направо
                - Выбранный пункт подсвечивается жёлтым и крупнее
             5. Чёрный fade-in overlay (в начале затем исчезает)
@@ -296,6 +311,9 @@ class MainMenuState:
             if i == 0:
                 # "Начать игру" — выезжает справа налево
                 x = screen.get_width() // 2 + self.start_game_offset
+            elif i == 1:
+                # "Звук" — появляется по центру
+                x = screen.get_width() // 2
             else:
                 # "Выйти" — выезжает слева направо
                 x = screen.get_width() // 2 + self.exit_offset

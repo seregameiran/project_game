@@ -31,6 +31,7 @@ class SoundType(Enum):
     DIALOG_BILLY = "dialog_billy" #диалог билли
 
 
+
 class MusicTrack(Enum):
     """Типы музыкальных треков."""
     MAIN_MENU = "main_menu"
@@ -103,12 +104,12 @@ class AudioManager:
             SoundType.UI_BACK: "ui_back.mp3",
             SoundType.INTERACT: "interact.mp3",
             SoundType.TRANSITION: "transition.mp3",
-            SoundType.DAMAGE: "damage.wav",
+            SoundType.DAMAGE: "damage.mp3",
             SoundType.HEAL: "heal.wav",
             SoundType.ATTACK: "attack.wav",
-            SoundType.BOSS_HIT: "boss_hit.wav",
-            SoundType.VICTORY: "victory.wav",
-            SoundType.DEFEAT: "defeat.wav",
+            SoundType.BOSS_HIT: "boss_hit.mp3",
+            SoundType.VICTORY: "victory.mp3",
+            SoundType.DEFEAT: "defeat.mp3",
             SoundType.DIALOG: "dialog.mp3",
             SoundType.DIALOG_BILLY: "dialog_billy.mp3",
         }
@@ -143,11 +144,12 @@ class AudioManager:
 
         music_files = {
             MusicTrack.EXPLORING: "exploring.mp3",
-            MusicTrack.BATTLE: "battle.ogg",
+            MusicTrack.BATTLE: "battle.mp3",
             MusicTrack.BOSS_BATTLE: "boss_battle.ogg",
             MusicTrack.VICTORY: "victory.ogg",
-            MusicTrack.CREDITS: "credits.ogg",
+            MusicTrack.CREDITS: "credits.mp3",
             MusicTrack.MAIN_MENU: "main_menu.mp3",
+
         }
 
         filename = music_files.get(track)
