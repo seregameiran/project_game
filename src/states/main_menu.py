@@ -89,7 +89,7 @@ class MainMenuState:
         self._font_cache: dict = {}
 
         # Список пунктов меню
-        self.menu_items = ["Начать игру", "Звук", "Выйти"]
+        self.menu_items = ["Начать игру", "Выйти"]
 
         # Индекс выбранного пункта (0 — первый пункт)
         self.selected = 0
@@ -158,13 +158,6 @@ class MainMenuState:
             self._font_cache[size] = pygame.font.Font(self.font_path, size)
         return self._font_cache[size]
 
-    def _get_sound_status_text(self) -> str:
-        """Возвращает текст статуса звука для отображения в меню."""
-        if self.game.audio.enabled:
-            return "Звук: Вкл"
-        else:
-            return "Звук: Выкл"
-
     def handle_events(self, events):
         """
         Обработка событий в главном меню.
@@ -211,11 +204,6 @@ class MainMenuState:
                         self.game.reset_game()
                         self.game.change_state(GameState.EXPLORING)
                     elif self.selected == 1:
-                        # "Звук" — переключаем звук
-                        self.game.audio.toggle_mute()
-                        # Обновляем текст пункта меню (меняется статус звука)
-                        self.menu_items[1] = self._get_sound_status_text()
-                    elif self.selected == 2:
                         # "Выйти" — завершаем игру
                         self.game.running = False
 

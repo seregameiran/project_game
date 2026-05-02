@@ -285,7 +285,7 @@ class BattleHUD:
         slot_w = 110
         # Область справа от лога, но не доезжаем до надписи ESC
         log_end_x = info_box.x + _LOG_W + 10
-        right_limit = info_box.right - 100  # резерв под "ESC — выйти из боя"
+        right_limit = info_box.right  # резерв под "ESC — выйти из боя"
 
         # Доступная ширина под иконки
         avail_width = right_limit - log_end_x
@@ -293,7 +293,7 @@ class BattleHUD:
         area_cx = log_end_x + avail_width // 2
 
         start_x = area_cx - (len(available) * slot_w) // 2
-        sy = info_box.bottom - 50
+        sy = info_box.bottom - 70
 
         for i, (key, att, name) in enumerate(available):
             sx = start_x + i * slot_w
