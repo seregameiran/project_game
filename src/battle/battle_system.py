@@ -460,13 +460,18 @@ class BattleSystem:
             self.problem_text   = f"[Обучение: Вычитание]\n{text}"
             self.correct_answer = ans
 
-        else:
-            # Умножение и деление — случайные примеры (боссы 2–3)
-            from .math_problem import make_problem, _OP_MAP
-            op = _OP_MAP.get(attack_type, "+")
-            text, ans = make_problem(op)
+        else: # Умножение и деление — случайные примеры (боссы 2–3)
+            # Умножение — пример X × Y = ?
+            if attack_type == "mul":
+                ans = self.x * self.y
+                text = f"X × Y = {self.x} × {self.y} = ?"
+            else:
+                # Деление — случайный пример (босс 3)
+                from .math_problem import make_problem, _OP_MAP
+                op = _OP_MAP.get(attack_type, "+")
+                text, ans = make_problem(op)
             self.problem_text   = f"[Обучение: {ATTACK_NAMES[attack_type]}]\n{text}"
-            self.correct_answer = ans
+            self.correct_answer = ans        
 
     def _check_unlock_conditions(self):
         """Проверяет, нужно ли показать туториал для новой атаки."""
@@ -539,9 +544,13 @@ class BattleSystem:
             self.correct_answer = ans
 
         else:
-            from .math_problem import make_problem, _OP_MAP
-            op = _OP_MAP.get(attack_type, "+")
-            text, ans = make_problem(op)
+            if attack_type == "mul":
+                ans = self.x * self.y
+                text = f"X × Y = {self.x} × {self.y} = ?"
+            else:
+                from .math_problem import make_problem, _OP_MAP
+                op = _OP_MAP.get(attack_type, "+")
+                text, ans = make_problem(op)
             self.problem_text   = f"[Обучение: {ATTACK_NAMES[attack_type]}]\n{text}"
             self.correct_answer = ans
 
