@@ -288,24 +288,15 @@ class BattleHUD:
         gap_y = 6
         # Область справа от лога, но не доезжаем до надписи ESC
         log_end_x = info_box.x + _LOG_W + 10
-        right_limit = info_box.right - 100  # резерв под "ESC — выйти из боя"
+        right_limit = info_box.right  # резерв под "ESC — выйти из боя"
 
         # Доступная ширина под иконки
         avail_width = right_limit - log_end_x
         # Центр доступной области
         area_cx = log_end_x + avail_width // 2
 
-        # Максимум 2 кнопки в ряд
-        cols = 2
-        rows = (len(available) + 1) // 2 # округление вверх
-
-        # Ширина и высота всей плитки
-        grid_w = cols * slot_w + (cols - 1) * gap_x
-        grid_h = rows * slot_h + (rows - 1) * gap_y
-
-        # Левый верхний угол плитки (центрируем по area_cx и info_box.bottom)
-        start_x = area_cx - grid_w // 2
-        start_y = info_box.bottom - grid_h - 15  # 15px отступ снизу
+        start_x = area_cx - (len(available) * slot_w) // 2
+        sy = info_box.bottom - 50
 
         for idx, (key, att, name) in enumerate(available):
             row = idx // cols
