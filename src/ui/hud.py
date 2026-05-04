@@ -282,7 +282,10 @@ class BattleHUD:
         if not available:
             return
 
-        slot_w = 110
+        slot_w = 95
+        slot_h = 42
+        gap_x = 8
+        gap_y = 6
         # Область справа от лога, но не доезжаем до надписи ESC
         log_end_x = info_box.x + _LOG_W + 10
         right_limit = info_box.right  # резерв под "ESC — выйти из боя"
@@ -293,22 +296,28 @@ class BattleHUD:
         area_cx = log_end_x + avail_width // 2
 
         start_x = area_cx - (len(available) * slot_w) // 2
-        sy = info_box.bottom - 70
+        sy = info_box.bottom - 50
 
-        for i, (key, att, name) in enumerate(available):
-            sx = start_x + i * slot_w
-            # Не выходим за right_limit
-            if sx + 100 > right_limit:
+        for idx, (key, att, name) in enumerate(available):
+            row = idx // cols
+            col = idx % cols
+            
+            sx = start_x + col * (slot_w + gap_x)
+            sy = start_y + row * (slot_h + gap_y)
+            
+            # Не выходим за границы
+            if sx + slot_w > right_limit:
                 break
+                
             active = sys.phase == Phase.PLAYER_CHOOSE
             bg = (50, 50, 80) if active else (30, 30, 50)
-            pygame.draw.rect(screen, bg,        (sx, sy, 100, 40), border_radius=6)
-            pygame.draw.rect(screen, (80,80,120),(sx, sy, 100, 40), 1, border_radius=6)
-
-            k = self.font_hint.render(f"[{key}]", True, COLOR_YELLOW)
-            n = self.font_hint.render(name,        True, COLOR_WHITE)
-            screen.blit(k, (sx + 8, sy + 6))
-            screen.blit(n, (sx + 8, sy + 22))
+            pygame.draw.rect(screen, bg,        (sx, sy, slot_w, slot_h), border_radius=5)
+            pygame.draw.rect(screen, (80,80,120),(sx, sy, slot_w, slot_h), 1, border_radius=5)
+            
+            k = pygame.font.Font(None, 16).render(f"[{key}]", True, COLOR_YELLOW)
+            n = pygame.font.Font(None, 16).render(name, True, COLOR_WHITE)
+            screen.blit(k, (sx + 6, sy + 5))
+            screen.blit(n, (sx + 6, sy + 22))
 
     def _draw_problem(self, screen, W, H, sys: "BattleSystem"):
         box_w, box_h = 420, 120
