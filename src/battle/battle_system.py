@@ -24,14 +24,14 @@ from .math_problem import (
 
 PLAYER_HP_START = {1: 50,  2: 60,  3: 70}
 BOSS_HP_START   = {1: 50,  2: 70,  3: 100}
-BOSS_Y_START    = {1: 2,   2: 4,   3: 6}
-BOSS_N_MIN      = {1: 2,   2: 3,   3: 4}
-BOSS_N_MAX      = {1: 6,   2: 7,   3: 8}
+BOSS_Y_START    = {1: 2,   2: 3,   3: 4}
+BOSS_N_MIN      = {1: 1,   2: 1,   3: 1}
+BOSS_N_MAX      = {1: 2,   2: 3,   3: 4}
 
 # X-порог для разблокировки атак
-UNLOCK_X_SUB = 7
-UNLOCK_X_MUL = 10
-UNLOCK_X_DIV = 12
+UNLOCK_X_SUB = 4
+UNLOCK_X_MUL = 7
+UNLOCK_X_DIV = 10
 
 # Интервалы атак босса (в ходах)
 BOSS_ADD_INTERVAL = 2       # раз в 2 хода
@@ -138,7 +138,7 @@ class BattleSystem:
 
         # Первый босс всегда начинает с X=0.
         # Остальные — с сохранённым X ÷ 2 (минимум 1).
-        self.x = 0 if self.boss_id == 1 else max(1, self.saved_x // 2)
+        self.x = 0 if self.boss_id == 1 else max(1, self.saved_x)
 
         # Y скрыт до завершения первого туториала
         self.y_revealed = (self.boss_id != 1)
@@ -271,23 +271,27 @@ class BattleSystem:
     # -----------------------------------------------------------------------
 
     def _apply_player_attack(self, attack_type: str):
-        mult = 2 if self.mul_next_double else 1
-        self.mul_next_double = False
+        if attack_type in ("add", "sub"):
+            mult = 2 if self.mul_next_double else 1
+            self.mul_next_double = False  # сбрасывается только при add/sub
+        else:
+            mult = 1
 
         if attack_type == "add":
             # X = X + 1 (×2 если бафф), HP босса -= новый X
-            self.x += 1 * mult
-            self.hp_boss -= self.x
-            msg = f"Билли: Сложение +{mult*1} X, урон {self.x}"
+            self.x += 1
+            dmg = self.x * mult
+            self.hp_boss -= dmg
+            msg = f"Билли: Сложение X={self.x}, урон {dmg}"
             self._feedback(msg)
             self._log(msg)
 
         elif attack_type == "sub":
-            # Y = Y – 2 (×2 если бафф), HP босса -= 2 (×2 если бафф)
-            dmg = 2 * mult
-            self.y = max(0, self.y - dmg)
-            self.hp_boss -= dmg
-            msg = f"Билли: Вычитание Y-{dmg}, урон {dmg}"
+            # Y = Y – 2 (Y = Y - 2 ×2 если бафф), HP босса -= 2
+            y_reduce = 2 * mult
+            self.y = max(0, self.y - y_reduce)
+            self.hp_boss -= 2
+            msg = f"Билли: Вычитание Y-{y_reduce}, урон 2"
             self._feedback(msg)
             self._log(msg)
 
