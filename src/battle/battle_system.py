@@ -157,9 +157,9 @@ class BattleSystem:
         # Разблокировки: у первого босса всё с нуля.
         # У последующих — сохранённый X мог уже превысить пороги.
         self.add_unlocked = self.saved_unlocks.get("add", False)
-        self.sub_unlocked = self.saved_unlocks.get("sub", False) or (self.x >= UNLOCK_X_SUB)
-        self.mul_unlocked = self.saved_unlocks.get("mul", False) or (self.boss_id >= 2 and self.x >= UNLOCK_X_MUL)
-        self.div_unlocked = self.saved_unlocks.get("div", False) or (self.boss_id >= 3 and self.x >= UNLOCK_X_DIV)
+        self.sub_unlocked = self.saved_unlocks.get("sub", False)
+        self.mul_unlocked = self.saved_unlocks.get("mul", False)
+        self.div_unlocked = self.saved_unlocks.get("div", False)
 
         self._pending_unlock = None
         self._unlock_stage   = 0
@@ -352,14 +352,14 @@ class BattleSystem:
         Остальные: фиксированные интервалы.
         """
         # Деление (только босс 3)
-        if self.boss_id >= 3:
+        if self.boss_id >= 3 and self.div_unlocked:
             self._turns_since_div += 1
             if self._turns_since_div >= BOSS_DIV_INTERVAL:
                 self._turns_since_div = 0
                 return "div"
 
         # Умножение (только босс 2+)
-        if self.boss_id >= 2:
+        if self.boss_id >= 2 and self.mul_unlocked:
             self._turns_since_mul += 1
             if self._turns_since_mul >= BOSS_MUL_INTERVAL:
                 self._turns_since_mul = 0
@@ -404,12 +404,12 @@ class BattleSystem:
             self._log(msg)
 
         elif attack == "sub":
-            # Правильно: X -= 2; Ошибка: X = X // 2
+            # Правильно: X -= 1; Ошибка: X = X - 2
             if correct:
-                self.x = max(0, self.x - 2)
+                self.x = max(0, self.x - 1)
                 msg = f"Босс: X-2 → X={self.x}"
             else:
-                self.x = max(0, self.x // 2)
+                self.x = max(0, self.x - 2)
                 msg = f"Босс: X÷2 → X={self.x} (ошибка!)"
             self._feedback(msg)
             self._log(msg)

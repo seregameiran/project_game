@@ -190,6 +190,9 @@ class Game:
         exploring_state = self.states.get(GameState.EXPLORING)
         if exploring_state:
             exploring_state.load_location(1)
+            # ДОБАВИТЬ: Сброс сохранённых данных боя
+            exploring_state._saved_battle_x = 0
+            exploring_state._saved_unlocks = {}
 
         # Сбрасываем состояние диалога
         dialogue_state = self.states.get(GameState.DIALOGUE)
