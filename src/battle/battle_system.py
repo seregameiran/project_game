@@ -390,7 +390,10 @@ class BattleSystem:
     def _resolve_boss_answer(self, correct: bool):
         self._apply_boss_effect(self._boss_attack, correct)
         if not correct:
-            self._set_error("Ошибка!")
+            # показываем описание эффекта красным цветом вместо зелёного
+            self.error_msg   = self.feedback_msg
+            self.error_timer = self.feedback_timer
+            self.feedback_msg = ""
         self.answer_buffer = ""
         self.problem_text  = ""
         self._boss_attack  = None
@@ -411,10 +414,10 @@ class BattleSystem:
             # Правильно: X -= 1; Ошибка: X = X - 2
             if correct:
                 self.x = max(0, self.x - 1)
-                msg = f"Босс: X-2 → X={self.x}"
+                msg = f"Босс: X-1 → X={self.x}"
             else:
                 self.x = max(0, self.x - 2)
-                msg = f"Босс: X÷2 → X={self.x} (ошибка!)"
+                msg = f"Босс: X-2 → X={self.x} (ошибка!)"
             self._feedback(msg)
             self._log(msg)
 

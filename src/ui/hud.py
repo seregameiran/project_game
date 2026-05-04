@@ -246,15 +246,11 @@ class BattleHUD:
         screen.blit(esc, (info_box.right - esc.get_width() - 20,
                           info_box.bottom - 28))
 
-        # Сообщение фидбека (зелёное) — по центру правой части
-        if sys.feedback_msg:
-            s = self.font_mid.render(sys.feedback_msg, True, COLOR_GREEN)
+        msg_text  = sys.error_msg  if sys.error_msg  else sys.feedback_msg
+        msg_color = COLOR_RED      if sys.error_msg  else COLOR_GREEN
+        if msg_text:
+            s = self.font_mid.render(msg_text, True, msg_color)
             screen.blit(s, (content_cx - s.get_width() // 2, info_box.y + 15))
-
-        # Сообщение ошибки (красное) — слева, сразу после лога
-        if sys.error_msg:
-            s = self.font_mid.render(sys.error_msg, True, COLOR_RED)
-            screen.blit(s, (log_end_x + 10, info_box.y + 50))
 
         # Финальный оверлей
         if sys.phase == Phase.RESULT and sys.result_msg:
