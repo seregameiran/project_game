@@ -271,7 +271,7 @@ class BattleHUD:
         pygame.draw.rect(screen, (80, 80, 80), (x, y, w, h), 1, border_radius=4)
 
     def _draw_attack_icons(self, screen, sys: "BattleSystem",
-                           info_box: pygame.Rect, content_cx: int):
+                        info_box: pygame.Rect, content_cx: int):
         slots = [
             ("1", "add", "Сложение"),
             ("2", "sub", "Вычитание"),
@@ -284,40 +284,40 @@ class BattleHUD:
 
         slot_w = 95
         slot_h = 42
-        gap_x = 8
-        gap_y = 6
-        # Область справа от лога, но не доезжаем до надписи ESC
-        log_end_x = info_box.x + _LOG_W + 10
-        right_limit = info_box.right  # резерв под "ESC — выйти из боя"
+        gap_x  = 8
+        gap_y  = 6
 
-        # Доступная ширина под иконки
+        log_end_x   = info_box.x + _LOG_W + 10
+        right_limit = info_box.right - 130   # резерв под "ESC — выйти из боя"
         avail_width = right_limit - log_end_x
-        # Центр доступной области
-        area_cx = log_end_x + avail_width // 2
+        area_cx     = log_end_x + avail_width // 2
 
-        start_x = area_cx - (len(available) * slot_w) // 2
-        sy = info_box.bottom - 50
+        n    = len(available)
+        cols = 1 if n == 1 else 2
+        rows = (n + cols - 1) // cols   # ceil(n / cols)
+
+        grid_w = cols * slot_w + (cols - 1) * gap_x
+        grid_h = rows * slot_h + (rows - 1) * gap_y
+
+        start_x = area_cx - grid_w // 2
+        start_y = info_box.y + info_box.height - grid_h - 8   # вертикально по центру панели
 
         for idx, (key, att, name) in enumerate(available):
             row = idx // cols
             col = idx % cols
-            
+
             sx = start_x + col * (slot_w + gap_x)
             sy = start_y + row * (slot_h + gap_y)
-            
-            # Не выходим за границы
-            if sx + slot_w > right_limit:
-                break
-                
+
             active = sys.phase == Phase.PLAYER_CHOOSE
             bg = (50, 50, 80) if active else (30, 30, 50)
-            pygame.draw.rect(screen, bg,        (sx, sy, slot_w, slot_h), border_radius=5)
-            pygame.draw.rect(screen, (80,80,120),(sx, sy, slot_w, slot_h), 1, border_radius=5)
-            
-            k = pygame.font.Font(None, 16).render(f"[{key}]", True, COLOR_YELLOW)
-            n = pygame.font.Font(None, 16).render(name, True, COLOR_WHITE)
-            screen.blit(k, (sx + 6, sy + 5))
-            screen.blit(n, (sx + 6, sy + 22))
+            pygame.draw.rect(screen, bg,          (sx, sy, slot_w, slot_h), border_radius=5)
+            pygame.draw.rect(screen, (80, 80, 120),(sx, sy, slot_w, slot_h), 1, border_radius=5)
+
+            k     = pygame.font.Font(None, 16).render(f"[{key}]", True, COLOR_YELLOW)
+            n_surf = pygame.font.Font(None, 16).render(name,     True, COLOR_WHITE)
+            screen.blit(k,      (sx + 6, sy + 5))
+            screen.blit(n_surf, (sx + 6, sy + 22))
 
     def _draw_problem(self, screen, W, H, sys: "BattleSystem"):
         box_w, box_h = 420, 120

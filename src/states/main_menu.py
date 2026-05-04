@@ -234,7 +234,6 @@ class MainMenuState:
 
         # Пункты меню выезжают с разных сторон: от ±ITEM_SLIDE_DIST до 0
         self.start_game_offset = int(self.ITEM_SLIDE_DIST  * (1.0 - self.appear_progress))
-        self.sound_offset = 0  # пункт "Звук" появляется по центру
         self.exit_offset       = int(-self.ITEM_SLIDE_DIST * (1.0 - self.appear_progress))
 
         # Плавно меняем размер шрифта для каждого пункта меню
@@ -299,9 +298,6 @@ class MainMenuState:
             if i == 0:
                 # "Начать игру" — выезжает справа налево
                 x = screen.get_width() // 2 + self.start_game_offset
-            elif i == 1:
-                # "Звук" — появляется по центру
-                x = screen.get_width() // 2
             else:
                 # "Выйти" — выезжает слева направо
                 x = screen.get_width() // 2 + self.exit_offset
