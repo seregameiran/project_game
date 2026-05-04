@@ -14,6 +14,8 @@ from src.states.exploring_dialogue import ExploringDialogueState
 from src.states.transition_location import TransitionLocationState
 from src.core.audio_manager import AudioManager, MusicTrack, SoundType
 from src.states.battle import BattleState
+from src.states.credits import CreditsState
+
 
 
 class Game:
@@ -59,6 +61,7 @@ class Game:
             GameState.PAUSE: PauseMenuState(self),
             GameState.TRANSITION_LOCATION: TransitionLocationState(self),
             GameState.BATTLE: BattleState(self),
+            GameState.CREDITS: CreditsState(self),
         }
 
         self.current_state = self.states[self.state]
@@ -187,6 +190,9 @@ class Game:
         exploring_state = self.states.get(GameState.EXPLORING)
         if exploring_state:
             exploring_state.load_location(1)
+            # ДОБАВИТЬ: Сброс сохранённых данных боя
+            exploring_state._saved_battle_x = 0
+            exploring_state._saved_unlocks = {}
 
         # Сбрасываем состояние диалога
         dialogue_state = self.states.get(GameState.DIALOGUE)

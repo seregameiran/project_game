@@ -19,7 +19,6 @@ from src.game_state import GameState
 from src.core.audio_manager import SoundType
 
 
-
 class MainMenuState:
     """
     Состояние главного меню.
@@ -29,7 +28,8 @@ class MainMenuState:
 
     Пункты меню:
         0. "Начать игру" - переход в состояние EXPLORING (карта)
-        1. "Выйти"       - завершение игры
+        1. "Звук: Вкл/Выкл" - переключение звука
+        2. "Выйти"       - завершение игры
 
     Анимации:
         - Fade-in: меню плавно появляется из чёрного экрана
@@ -64,7 +64,7 @@ class MainMenuState:
 
         Аргументы:
             game: ссылка на главный объект Game
-                  (для доступа к change_state, running и virtual_screen)
+                  (для доступа к change_state, running, virtual_screen и audio)
         """
         self.game = game
 
@@ -110,6 +110,7 @@ class MainMenuState:
         # "Начать игру" — выезжает справа (положительное смещение)
         # "Выйти"       — выезжает слева (отрицательное смещение)
         self.start_game_offset = self.ITEM_SLIDE_DIST
+        self.sound_offset = 0  # звук появляется по центру
         self.exit_offset       = -self.ITEM_SLIDE_DIST
 
         # Поверхность для fade-in затемнения (чёрный экран в начале)
@@ -255,6 +256,7 @@ class MainMenuState:
             3. Заголовок "Billy's Adventure" с анимацией падения сверху
             4. Пункты меню с анимацией выезжания и изменения размера:
                - "Начать игру" — выезжает справа налево
+               - "Звук: Вкл/Выкл" — появляется по центру
                - "Выйти"       — выезжает слева направо
                - Выбранный пункт подсвечивается жёлтым и крупнее
             5. Чёрный fade-in overlay (в начале затем исчезает)
