@@ -30,8 +30,8 @@ class Boss2:
     Y_START  = 4   # сразу открыт (не скрыт как у первого босса)
 
     # Диапазон N для атаки сложения
-    N_MIN = 3
-    N_MAX = 7
+    N_MIN = 1
+    N_MAX = 3
 
     def __init__(self):
         self.hp         = self.HP_START

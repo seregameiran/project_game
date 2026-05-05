@@ -31,8 +31,8 @@ class Boss1:
     Y_START  = 2   # скрыт до конца первого хода
 
     # Диапазон N для атаки сложения
-    N_MIN = 2
-    N_MAX = 6
+    N_MIN = 1
+    N_MAX = 2
 
     def __init__(self):
         self.hp         = self.HP_START
