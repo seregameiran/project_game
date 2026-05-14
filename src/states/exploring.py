@@ -9,7 +9,6 @@
     - Камеру, следующую за игроком
     - Обработку взаимодействия с NPC (клавиша E)
     - Обработку переходов между локациями (клавиша E у двери) через состояние TRANSITION_LOCATION
-    - Отладочный режим отображения коллизий (клавиша F1)
 
 Примечание:
     Логика затемнения при переходах между локациями вынесена в состояние TRANSITION_LOCATION.
@@ -47,7 +46,6 @@ class ExploringState:
         W/A/S/D или стрелки — движение персонажа
         E                   — взаимодействие с NPC / переход между локациями
         ESC                 — пауза
-        F1                  — включить/выключить отладку коллизий
     """
 
     def __init__(self, game):
@@ -78,9 +76,6 @@ class ExploringState:
         # Границы карты для ограничения движения игрока (pygame.Rect)
         self.map_bounds = None
 
-        # Флаг отладки — показывать ли коллизии на экране (F1)
-        self.show_debug = False
-
         # Загружаем первую локацию при старте
         self.load_location(1)
 
@@ -91,10 +86,8 @@ class ExploringState:
         self.nearby_transition = None
         self.transition_locked = False
         self.locked_hint_timer = 0.0
-        # Режим разработчика: разрешает переходы без убийства босса
-        self.dev_mode = False
 
-        #Сохранение прогресса боссов
+        # Сохранение прогресса боссов
         self._saved_battle_x = 0
         self._saved_unlocks = {}
 
@@ -120,8 +113,6 @@ class ExploringState:
         try:
             # Создаём рендерер карты с масштабом 1.5
             self.map_renderer = TiledMapRenderer(tmx_path, zoom=1.5)
-            print(f"Загружена локация {location_id}: "
-                  f"{self.map_renderer.width}x{self.map_renderer.height}")
 
             # Границы карты — прямоугольник от (0,0) до (width, height)
             self.map_bounds = pygame.Rect(
@@ -202,8 +193,6 @@ class ExploringState:
                 self.screen.get_height()
             )
 
-            print(f"Переход на локацию {self.current_location} (спавн: {spawn_x}, {spawn_y})")
-
         except Exception as e:
             print(f"Ошибка перехода: {e}")
             self.map_renderer = None
@@ -217,7 +206,6 @@ class ExploringState:
 
         Реагирует на:
             ESC  — пауза (переключение в PAUSE_MENU)
-            F1   — включение/выключение отладки коллизий
             E    — взаимодействие (NPC или переход между локациями)
 
         Аргументы:
@@ -232,16 +220,6 @@ class ExploringState:
                     if pause_state:
                         pause_state.enter(GameState.EXPLORING)
                         self.game.change_state(GameState.PAUSE)
-
-                elif event.key == pygame.K_F1 or event.key == pygame.K_BACKQUOTE:
-                    # На F1 и ` вместе переключаем Dev Mode и отладку коллизий
-                    self.dev_mode = not self.dev_mode
-                    self.show_debug = self.dev_mode
-                    self.game.audio.play_sound(SoundType.UI_HOVER)
-                    print(
-                        f"Dev Mode: {'ON' if self.dev_mode else 'OFF'} | "
-                        f"Debug: {'ON' if self.show_debug else 'OFF'}"
-                    )
 
                 elif event.key == pygame.K_e or event.unicode.lower() == "у":
                     # Проверяем взаимодействие с объектами на карте
@@ -279,9 +257,7 @@ class ExploringState:
         if self.map_renderer is None or self.player is None:
             return
 
-        # Взаимодействие проверяем небольшими "пробниками" вокруг игрока (центр + стороны),
-        # чтобы можно было подойти к зоне NPC с любой стороны, но без слишком раннего срабатывания.
-        probe_half = 7  # px (должен совпадать с update())
+        probe_half = 7
         pr = self.player.rect
         probe_points = (
             pr.center,
@@ -296,8 +272,6 @@ class ExploringState:
         ]
 
         # Проверяем NPC
-        # Старт диалога — только когда игрок действительно в "зелёной зоне" NPC.
-        # (Подсказка "Нажми E" остаётся по радиусу в update().)
         npc = None
         for probe_rect in probe_rects:
             npc = self.map_renderer.check_npc_interaction(probe_rect, radius=0)
@@ -309,7 +283,6 @@ class ExploringState:
             root_dir = os.path.dirname(os.path.dirname(
                 os.path.dirname(os.path.abspath(__file__))))
 
-            # Пути к портретам
             portrait_paths = {
                 "billy": os.path.join(root_dir, "assets",
                                       f"location{self.current_location}", "Billy-Head.png"),
@@ -318,7 +291,6 @@ class ExploringState:
                                                              f"NPC-{self.current_location}-Head.png"),
             }
 
-            # Запускаем диалог
             dialogue_state = self.game.states.get(GameState.DIALOGUE)
             if dialogue_state:
                 is_boss_dialog = (
@@ -339,13 +311,12 @@ class ExploringState:
         if transition:
             requires_boss = bool(transition.get("requires_boss", False))
             need_boss_gate = requires_boss and self.current_location >= 3
-            if need_boss_gate and not self.dev_mode and not self.game.is_boss_defeated(self.current_location):
+            if need_boss_gate and not self.game.is_boss_defeated(self.current_location):
                 self.transition_locked = True
                 self.locked_hint_timer = 1.2
                 self.game.audio.play_sound(SoundType.UI_BACK)
                 return
 
-            # Передаём данные перехода в состояние TRANSITION_LOCATION
             transition_state = self.game.states.get(GameState.TRANSITION_LOCATION)
             if transition_state:
                 transition_state.enter(transition)
@@ -370,21 +341,18 @@ class ExploringState:
 
         keys = pygame.key.get_pressed()
 
-        # Обновляем позицию игрока
         self.player.update(
             keys,
             self.map_renderer.check_collision,
             self.map_bounds
         )
 
-        # Обновляем анимацию игрока
         self.player.update_animation(dt)
 
-        # Обновляем камеру — она следует за игроком
         self.camera.follow(self.player.rect)
 
         # Проверяем есть ли NPC рядом
-        probe_half = 7  # px (должен совпадать с _check_interaction)
+        probe_half = 7
         pr = self.player.rect
         probe_points = (
             pr.center,
@@ -411,11 +379,9 @@ class ExploringState:
         self.transition_locked = False
         if self.nearby_transition and self.current_location >= 3:
             if (self.nearby_transition.get("requires_boss", False)
-                    and not self.dev_mode
                     and not self.game.is_boss_defeated(self.current_location)):
                 self.transition_locked = True
 
-        # Обновляем анимацию тайлов карты
         if self.map_renderer:
             self.map_renderer.update(dt)
 
@@ -428,20 +394,17 @@ class ExploringState:
 
         Порядок отрисовки:
             1. Карта (все видимые слои TMX)
-            2. Отладочные прямоугольники коллизий/переходов/NPC (если F1)
-            3. Игрок
-            4. Подсказки (E для взаимодействия, E для перехода)
-            5. Отладочная строка с позицией и количеством коллизий
+            2. Игрок
+            3. Подсказки (E для взаимодействия, E для перехода)
 
         Если карта не загружена — показывает сообщение об ошибке.
 
         Аргументы:
             screen: поверхность Pygame для отрисовки
         """
-        screen.fill((0, 0, 0))  # Очистка экрана
+        screen.fill((0, 0, 0))
 
         if self.map_renderer is None:
-            # Карта не загружена — показываем ошибку
             font = pygame.font.Font(None, 36)
             text = font.render("Ошибка загрузки карты", True, (255, 0, 0))
             screen.blit(text, (
@@ -453,14 +416,7 @@ class ExploringState:
         cam_x = int(self.camera.x)
         cam_y = int(self.camera.y)
 
-        # Рисуем карту
         self.map_renderer.draw(screen, cam_x, cam_y)
-
-        # Рисуем отладочные прямоугольники если включено (F1)
-        if self.show_debug:
-            self.map_renderer.draw_collisions_debug(screen, cam_x, cam_y)
-
-        # Рисуем игрока поверх карты
         self.player.draw(screen, cam_x, cam_y)
 
         # Подсказка "Нажми E" если рядом NPC
@@ -482,21 +438,3 @@ class ExploringState:
             hint = hint_font.render("Сначала победи босса!", True, (255, 120, 120))
             hint_rect = hint.get_rect(center=(screen.get_width() // 2, screen.get_height() - 40))
             screen.blit(hint, hint_rect)
-
-        if self.dev_mode:
-            dev_font = pygame.font.Font(None, 24)
-            dev_text = dev_font.render("DEV MODE + DEBUG: ON (F1 / `)", True, (255, 210, 80))
-            screen.blit(dev_text, (10, 34))
-
-        # Отладочная строка в левом верхнем углу
-        font = pygame.font.Font(None, 24)
-        info_text = font.render(
-            f"Локация: {self.current_location}  "
-            f"Позиция: ({self.player.rect.x}, {self.player.rect.y})  "
-            f"Камера: ({cam_x}, {cam_y})  "
-            f"Коллизий: {len(self.map_renderer.collision_rects)}  "
-            f"F1 / `: dev + отладка",
-            True,
-            (255, 255, 255)
-        )
-        screen.blit(info_text, (10, 10))
