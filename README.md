@@ -2,7 +2,6 @@
 
 [![Python](https://img.shields.io/badge/Python-3.13-blue.svg)](https://python.org)
 [![Pygame](https://img.shields.io/badge/Pygame-2.5-green.svg)](https://pygame.org)
-[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Status](https://img.shields.io/badge/Status-Released-brightgreen.svg)]()
 
 > **2D RPG-игра в пиксельной стилистике, где математика становится оружием!**
@@ -155,7 +154,7 @@ BillysAdventure/
 ├── .gitignore                # Игнорируемые файлы
 ├── main.spec                 # Конфигурация PyInstaller
 ├── requirements.txt          # Зависимости Python
-├── LICENSE                   # Лицензия MIT
+├── BillysAdventure_Setup.exe # Установка самой игры
 └── README.md                 # Этот файл
 ```
 
@@ -201,6 +200,18 @@ BillysAdventure/
 - ✅ Адаптивное масштабирование под любой экран
 
 ---
+
+## ⚠️ Важно
+
+Проект выполнен в **учебных целях** в рамках практики в ДВФУ.
+
+- **Код** написан полностью самостоятельно и может использоваться для обучения
+- **Аудио** (музыка и звуки) взяты из открытых источников и принадлежат их законным владельцам
+- **Графика** создана командой разработчиков и сторонними авторами (тайлсеты, шрифты)
+
+Коммерческое распространение игры **запрещено** без замены всех аудиофайлов на лицензионные.
+
+По вопросам использования кода — пишите авторам.
 
 ## 🙏 Благодарности
 
