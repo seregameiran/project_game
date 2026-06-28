@@ -1,7 +1,8 @@
 <p align="center">
-  <img src="screenshots/Billy-Head.png" alt="Billy" width="64" style="vertical-align: middle;"/>
-  <span style="font-size: 2em; font-weight: bold; vertical-align: middle;">Billy's Adventure</span>
+  <img src="screenshots/Billy-Head.png" width="96">
 </p>
+<h1 align="center">Billy's Adventure</h1>
+
 
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.13-blue.svg" alt="Python"/>
@@ -24,7 +25,7 @@
 Проект полностью рабочий, собран в **EXE - файл** и готов к запуску на Windows.
 
 <div align="center">
-  <img src="screenshots/steptostep.gif" alt="Геймплей Billy's Adventure" width="100"/>
+  <img width="100" alt="Billy" src="https://github.com/user-attachments/assets/85f2c563-4a37-4e7f-9b1c-b30587701bde" />
   <br/>
   <sub><i>🎥 Это Billy Nogami </i></sub>
 </div>
@@ -325,7 +326,3 @@ BillysAdventure/
 *Разработано в ДВФУ, Департамент программной инженерии и искусственного интеллекта, командой 1 курса 2 семестра программной инженерии*
 
 *Владивосток, 2026*
-
-<p align="center">
-  <img src="https://komarev.com/ghpvc/?username=westside-jpg&label=Profile%20Views&color=0e75b6&style=for-the-badge" alt="Profile Views" />
-</p>
