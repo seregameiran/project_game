@@ -1,7 +1,9 @@
 <p align="center">
   <img src="screenshots/Billy-Head.png" width="96">
 </p>
-<h1 align="center">Billy's Adventure</h1>
+<p align="center">
+  <font size="10"><b>Billy's Adventure</b></font>
+</p>
 
 
 <p align="center">
