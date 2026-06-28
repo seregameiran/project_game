@@ -1,10 +1,17 @@
-# 🎮 Billy's Adventure
+<p align="center">
+  <img src="screenshots/Billy-Head.png" alt="Billy" width="64" style="vertical-align: middle;"/>
+  <span style="font-size: 2em; font-weight: bold; vertical-align: middle;">Billy's Adventure</span>
+</p>
 
-[![Python](https://img.shields.io/badge/Python-3.13-blue.svg)](https://python.org)
-[![Pygame](https://img.shields.io/badge/Pygame-2.5-green.svg)](https://pygame.org)
-[![Status](https://img.shields.io/badge/Status-Released-brightgreen.svg)]()
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.13-blue.svg" alt="Python"/>
+  <img src="https://img.shields.io/badge/Pygame-2.5-green.svg" alt="Pygame"/>
+  <img src="https://img.shields.io/badge/Status-Released-brightgreen.svg" alt="Status"/>
+</p>
 
-> **2D RPG-игра в пиксельной стилистике, где математика становится оружием!**
+<p align="center">
+  <b>2D RPG-игра в пиксельной стилистике, где математика становится оружием!</b>
+</p>
 
 ---
 
@@ -14,7 +21,13 @@
 
 В пошаговых боях арифметические операции превращаются в атаки, влияющие на параметры **X** (урон игрока) и **Y** (урон босса). Чтобы победить, нужно не только правильно выбирать атаки, но и решать математические примеры, которые задают боссы.
 
-Проект полностью рабочий, собран в **EXE-файл** и готов к запуску на Windows.
+Проект полностью рабочий, собран в **EXE - файл** и готов к запуску на Windows.
+
+<div align="center">
+  <img src="screenshots/steptostep.gif" alt="Геймплей Billy's Adventure" width="100"/>
+  <br/>
+  <sub><i>🎥 Это Billy Nogami </i></sub>
+</div>
 
 ---
 
@@ -95,6 +108,86 @@
 
 ---
 
+## 📷 Скриншоты игры
+
+<div align="center">
+  
+  ### 🎮 Главное меню
+  <img src="screenshots/menu.png" alt="Главное меню" width="700"/>
+  <br/>
+  <sub><i>Стильное пиксельное меню с атмосферным саундтреком</i></sub>
+  
+  <br/><br/>
+  
+  ### 💬 Диалоговая система
+  <table>
+    <tr>
+      <td align="center" width="50%">
+        <img src="screenshots/npc_dialogue.png" alt="Диалог с NPC" width="95%"/>
+        <br/>
+        <b>🗣️ Разговор с NPC</b><br/>
+        <sub>Узнай городские легенды и подсказки</sub>
+      </td>
+      <td align="center" width="50%">
+        <img src="screenshots/boss_dialogue.png" alt="Диалог с боссом" width="95%"/>
+        <br/>
+        <b>👹 Разговор с боссом</b><br/>
+        <sub>Каждый босс ждёт твоего экзамена</sub>
+      </td>
+    </tr>
+  </table>
+  
+  <br/>
+  
+  ### ⚔️ Боевая система - сердце игры
+  <table>
+    <tr>
+      <td align="center" width="50%">
+        <img src="screenshots/battle_system.png" alt="Боевая система" width="95%"/>
+        <br/>
+        <b>⚡ Полноценный бой</b><br/>
+        <sub>Математические формулы становятся оружием!</sub>
+      </td>
+      <td align="center" width="50%">
+        <img src="screenshots/system_learning.png" alt="Обучение" width="95%"/>
+        <br/>
+        <b>📚 Обучение новым атакам</b><br/>
+        <sub>Побеждай боссов и открывай новые способности</sub>
+      </td>
+    </tr>
+  </table>
+  
+  <br/>
+  
+  ### 🏆 Прогресс и достижения
+  <table>
+    <tr>
+      <td align="center" width="50%">
+        <img src="screenshots/win.png" alt="Победа" width="95%"/>
+        <br/>
+        <b>🎉 Победа над боссом</b><br/>
+        <sub>Отец повержен! С каждым боссом сложность растёт</sub>
+      </td>
+      <td align="center" width="50%">
+        <img src="screenshots/transition_location.png" alt="Переход" width="95%"/>
+        <br/>
+        <b>🚪 Переход между локациями</b><br/>
+        <sub>Побеждай боссов, чтобы открывать новые зоны</sub>
+      </td>
+    </tr>
+  </table>
+  
+  <br/>
+  
+  ### 👀 Секреты игры
+  <img src="screenshots/we_see_you.png" alt="Секрет" width="700"/>
+  <br/>
+  <sub><i>👁️ Мы видим тебя! Интересные пасхалки ждут игроков</i></sub>
+
+</div>
+
+---
+
 ## 🚀 Установка и запуск
 
 ### Способ 1: Из исходников (Python)
@@ -148,6 +241,7 @@ BillysAdventure/
 │   ├── Б9125_09_03_04_ПРАКТИКА_ОТЧЕТ_Мейран_СИ.docx  # Полный отчёт
 │   └── Боссы.docx            # Описание боевой механики
 │
+├── screenshots               # Скриншоты игры
 ├── dist/                     # Сборка EXE
 ├── build/                    # Временные файлы сборки
 │
@@ -231,3 +325,7 @@ BillysAdventure/
 *Разработано в ДВФУ, Департамент программной инженерии и искусственного интеллекта, командой 1 курса 2 семестра программной инженерии*
 
 *Владивосток, 2026*
+
+<p align="center">
+  <img src="https://komarev.com/ghpvc/?username=westside-jpg&label=Profile%20Views&color=0e75b6&style=for-the-badge" alt="Profile Views" />
+</p>
